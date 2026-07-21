@@ -35,6 +35,7 @@ ACCESSIONS_FILE="${3:-}"
 # SLURM_SUBMIT_DIR (cwd at submission time) instead, which is where
 # compute_network_stats.py / aggregate_stats.py actually live.
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+source /work/11301/wsoylemez/vista/philharmonic/sbatch_jobs/common.sh
 JOBS="${SLURM_CPUS_PER_TASK:-144}"
 
 mkdir -p "$OUT_DIR/logs"
