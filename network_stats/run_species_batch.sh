@@ -30,7 +30,11 @@ set -euo pipefail
 BASE_DIR="${1:?Usage: sbatch run_species_batch.sh <species_base_dir> [out_dir] [accessions_file]}"
 OUT_DIR="${2:-$BASE_DIR/network_stats_out}"
 ACCESSIONS_FILE="${3:-}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# sbatch copies this script into /var/spool/slurmd/job<id>/ and runs it from
+# there, so BASH_SOURCE's own dirname is useless under Slurm -- use
+# SLURM_SUBMIT_DIR (cwd at submission time) instead, which is where
+# compute_network_stats.py / aggregate_stats.py actually live.
+SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 JOBS="${SLURM_CPUS_PER_TASK:-144}"
 
 mkdir -p "$OUT_DIR/logs"
