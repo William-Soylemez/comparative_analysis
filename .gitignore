@@ -1,0 +1,13 @@
+GCF_*
+GCA_*
+*.json
+*.tsv
+*.png
+.claude
+__pycache__
+venv
+*.md
+.DS_Store
+blastdb
+go_data
+proteomes

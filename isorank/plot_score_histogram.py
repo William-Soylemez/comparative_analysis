@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""
+Histogram of the IsoRank alignment scores for the bottom PCT% (lowest-scoring
+pairs), binned by percentile (1 percentile wide each) — a diagnostic to help
+pick a confidence cutoff, not a headline figure, so it's binned by rank rather
+than raw score value (raw score is heavily right-skewed and would bury the
+low tail in one bin). Written as both linear and log y-scale versions, since
+a linear axis shows where the curve visibly bends (the elbow) while a log
+axis shows whether the low end is still smoothly geometric or has a genuine
+step change.
+
+Usage:
+    python3 plot_score_histogram.py <species_a> <species_b> [pct]
+Expects <species_a>_<species_b>_alignment_scored.tsv (from run_full_alignment.py).
+"""
+
+import sys
+import json
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+HUE = "#2a78d6"  # sequential single-hue, magnitude encoding — one series, no legend needed
+
+a, b = sys.argv[1], sys.argv[2]
+PCT = int(sys.argv[3]) if len(sys.argv) > 3 else 50
+prefix = f"{a}_{b}"
+
+df = pd.read_csv(f"{prefix}_alignment_scored.tsv", sep="\t")
+scores = np.sort(df["score"].to_numpy())
+n = len(scores)
+
+cutoff_idx = int(np.ceil(PCT / 100 * n))
+bottom = scores[:cutoff_idx]
+
+bin_means, bin_mins, bin_maxs = [], [], []
+for bnd in range(PCT):
+    lo = int(np.floor(bnd / 100 * n))
+    hi = int(np.floor((bnd + 1) / 100 * n))
+    seg = bottom[lo:hi]
+    bin_means.append(seg.mean() if len(seg) else np.nan)
+    bin_mins.append(seg.min() if len(seg) else np.nan)
+    bin_maxs.append(seg.max() if len(seg) else np.nan)
+
+x = np.arange(PCT)
+label_bands = set(range(0, PCT, 5)) | {PCT - 1}
+
+
+def make_plot(yscale, outfile):
+    fig, ax = plt.subplots(figsize=(13, 5.2))
+    ax.bar(x, bin_means, width=0.82, color=HUE)
+    ax.set_xticks(x[::2])
+    ax.set_xticklabels([f"{bnd}" for bnd in x[::2]], fontsize=7, rotation=0)
+    ax.set_xlabel(f"Percentile of alignment score (lowest {PCT}% of all matched pairs)")
+    ax.set_ylabel("Mean IsoRank score in percentile band"
+                  f"{' (log scale)' if yscale == 'log' else ''}")
+    if yscale == "log":
+        ax.set_yscale("log")
+    ax.grid(True, axis="y", color="#e6e6e3", linewidth=0.6)
+    ax.set_axisbelow(True)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+
+    for bnd in sorted(label_bands):
+        v = bin_means[bnd]
+        if not np.isnan(v):
+            ax.text(bnd, v, f"{v:.2g}", ha="center", va="bottom", fontsize=7,
+                    color="#52514e", rotation=90)
+
+    ax.set_title(f"IsoRank alignment scores, {a} <-> {b} — lowest {PCT}% by percentile band "
+                 f"({yscale} y-axis)\n"
+                 f"(n={n} pairs total, 100% of the smaller species' nodes matched; "
+                 f"band 0 = lowest-confidence pairs)", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=150, bbox_inches="tight")
+    print(f"wrote {outfile}")
+
+
+make_plot("linear", f"{prefix}_score_bottom{PCT}_linear.png")
+make_plot("log", f"{prefix}_score_bottom{PCT}_log.png")
+
+out = {
+    "species_a": a,
+    "species_b": b,
+    "n_total_pairs": n,
+    "pct": PCT,
+    "n_bottom_pairs": cutoff_idx,
+    "bin_edges_percentile": list(range(PCT + 1)),
+    "bin_mean_score": [float(v) if not np.isnan(v) else None for v in bin_means],
+    "bin_min_score": [float(v) if not np.isnan(v) else None for v in bin_mins],
+    "bin_max_score": [float(v) if not np.isnan(v) else None for v in bin_maxs],
+}
+with open(f"{prefix}_score_bottom{PCT}.json", "w") as f:
+    json.dump(out, f, indent=2)
+print(f"wrote {prefix}_score_bottom{PCT}.json")
