@@ -57,12 +57,12 @@ def find_species_files(species_dir):
     return acc, network_path, clusters_path
 
 
-def load_graph(network_path):
+def load_graph(network_path, quiet=False):
     """Read an undirected, deduplicated, self-loop-free edge list into a Graph."""
     g = nx.Graph()
     with open(network_path) as f:
         lines = f.readlines()
-    for line in tqdm(lines, desc="loading edges", unit="edge"):
+    for line in tqdm(lines, desc="loading edges", unit="edge", disable=quiet):
         parts = line.rstrip("\n").split("\t")
         if len(parts) < 2:
             continue
@@ -80,10 +80,10 @@ def count_clusters(clusters_path):
         return len(json.load(f))
 
 
-def count_bridges(g, components):
+def count_bridges(g, components, quiet=False):
     """Sum bridges within each connected component (nx.bridges requires connectivity)."""
     total = 0
-    for comp in tqdm(components, desc="bridges per component", unit="component"):
+    for comp in tqdm(components, desc="bridges per component", unit="component", disable=quiet):
         sub = g.subgraph(comp)
         if sub.number_of_edges() == 0:
             continue
@@ -91,11 +91,12 @@ def count_bridges(g, components):
     return total
 
 
-def compute_stats(species_dir, skip):
+def compute_stats(species_dir, skip, quiet=False):
     acc, network_path, clusters_path = find_species_files(species_dir)
-    print(f"species: {acc}", file=sys.stderr)
+    if not quiet:
+        print(f"species: {acc}", file=sys.stderr)
 
-    g = load_graph(network_path)
+    g = load_graph(network_path, quiet=quiet)
     degrees = [d for _, d in g.degree()]
     components = list(nx.connected_components(g))
     largest_cc = max(components, key=len)
@@ -116,7 +117,7 @@ def compute_stats(species_dir, skip):
     if "num_bridges" in skip:
         result["num_bridges"] = None
     else:
-        result["num_bridges"] = count_bridges(g, components)
+        result["num_bridges"] = count_bridges(g, components, quiet=quiet)
 
     return result
 
@@ -127,9 +128,11 @@ def main():
     ap.add_argument("--skip", nargs="+", default=[], choices=ALL_SKIPPABLE,
                      help=f"Stats to skip (set to null in output) to save time: {ALL_SKIPPABLE}")
     ap.add_argument("--out", default=None, help="Output JSON path (default: print to stdout)")
+    ap.add_argument("--quiet", action="store_true",
+                     help="Disable progress bars (use when running many species in parallel)")
     args = ap.parse_args()
 
-    result = compute_stats(args.species_dir, set(args.skip))
+    result = compute_stats(args.species_dir, set(args.skip), quiet=args.quiet)
 
     out_json = json.dumps(result, indent=2)
     if args.out:
