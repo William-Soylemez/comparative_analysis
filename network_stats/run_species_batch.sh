@@ -66,26 +66,18 @@ else
 fi
 
 N_SPECIES=$(wc -l < "$OUT_DIR/species_list.txt")
+echo "found $N_SPECIES species dirs under $BASE_DIR, running with -P $JOBS"
 
-# Resume support: a species is already done if its stats JSON exists *and*
-# parses, so a job that got killed mid-write (e.g. walltime timeout) reruns
-# rather than being mistaken for complete. To force a full rerun instead,
-# remove the relevant *_stats.json files (or the whole OUT_DIR) first.
-: > "$OUT_DIR/species_list.remaining.txt"
-N_DONE=0
-while read -r dir; do
-    acc="$(basename "$dir")"
-    stats_file="$OUT_DIR/${acc}_stats.json"
-    if [[ -s "$stats_file" ]] && python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$stats_file" 2>/dev/null; then
-        N_DONE=$((N_DONE + 1))
-    else
-        echo "$dir" >> "$OUT_DIR/species_list.remaining.txt"
-    fi
-done < "$OUT_DIR/species_list.txt"
-
-N_REMAINING=$(wc -l < "$OUT_DIR/species_list.remaining.txt")
-echo "found $N_SPECIES species dirs under $BASE_DIR: $N_DONE already done, $N_REMAINING remaining, running with -P $JOBS"
-
+# Resume support now lives inside compute_network_stats.py itself: it loads
+# any existing --out JSON and only (re)computes keys that are missing from
+# it, so an already-complete species is a fast no-op (just a key check, no
+# network file read) and a species that's missing a newly-added stat (e.g.
+# cluster_graph, added after diameter/modularity already existed for some
+# species) gets exactly that gap filled in rather than being skipped
+# wholesale or fully recomputed. That means this script can just be rerun
+# for every species any time a new stat is added -- no separate "add the
+# new stat" script or manual deletion of old output needed. Pass --force to
+# compute_network_stats.py (edit run_one below) to force a full recompute.
 run_one() {
     dir="$1"
     acc="$(basename "$dir")"
@@ -100,6 +92,6 @@ run_one() {
 export -f run_one
 export SCRIPT_DIR OUT_DIR
 
-xargs -I{} -P "$JOBS" bash -c 'run_one "$@"' _ {} < "$OUT_DIR/species_list.remaining.txt"
+xargs -I{} -P "$JOBS" bash -c 'run_one "$@"' _ {} < "$OUT_DIR/species_list.txt"
 
 python3 "$SCRIPT_DIR/aggregate_stats.py" "$OUT_DIR"

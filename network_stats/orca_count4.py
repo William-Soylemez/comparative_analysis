@@ -89,50 +89,68 @@ def graphlets_from_orbits(orbit_out, n):
     return g
 
 
-def run_species(species_dir, workdir):
-    acc = os.path.basename(species_dir.rstrip("/"))
-    hits = glob.glob(f"{species_dir.rstrip('/')}/*_network.positive.tsv")
-    if not hits:
-        print(f"  !! no network file for {acc}")
-        return None
-    orca_in = os.path.join(workdir, f"{acc}.in")
-    orca_out = os.path.join(workdir, f"{acc}.orbits")
-    n, m, load_s = convert(hits[0], orca_in)
-    print(f"[{acc}] {n:,} nodes  {m:,} edges (avg deg {2*m/n:.1f})  "
-          f"converted in {human(load_s)}", flush=True)
-    t = time.time()
-    r = subprocess.run([ORCA, "node", "4", orca_in, orca_out],
-                       capture_output=True, text=True)
-    run_s = time.time() - t
-    if r.returncode != 0 or not os.path.exists(orca_out):
-        print(f"  !! ORCA failed: {r.stderr.strip() or r.stdout.strip()}")
-        return None
-    g = graphlets_from_orbits(orca_out, n)
-    print(f"[{acc}] ORCA done in {human(run_s)}  ->  "
-          f"total connected 4-graphlets = {g['total_connected_4graphlets']:,}",
-          flush=True)
-    return {"accession": acc, "nodes": n, "edges": m,
-            "orca_seconds": round(run_s, 2), "graphlets": g}
+WORKDIR = os.path.join(HERE, "orca_build", "work")
+MANIFEST = os.path.join(WORKDIR, "manifest.json")
 
 
-def main():
-    workdir = os.path.join(HERE, "orca_build", "work")
-    os.makedirs(workdir, exist_ok=True)
-    if len(sys.argv) > 1:
-        dirs = sys.argv[1:]
-    else:
-        dirs = sorted(glob.glob(os.path.join(ROOT, "GC*")))
-        dirs = [d for d in dirs if os.path.isdir(d)]
-    results = []
-    t0 = time.time()
+def species_dirs(args):
+    if args:
+        return args
+    dirs = sorted(glob.glob(os.path.join(ROOT, "GC*")))
+    return [d for d in dirs if os.path.isdir(d)]
+
+
+def prep(dirs):
+    """Trusted step: convert each species tsv -> ORCA .in file; write manifest."""
+    os.makedirs(WORKDIR, exist_ok=True)
+    manifest = []
     for d in dirs:
-        res = run_species(d, workdir)
-        if res:
-            results.append(res)
+        acc = os.path.basename(d.rstrip("/"))
+        hits = glob.glob(f"{d.rstrip('/')}/*_network.positive.tsv")
+        if not hits:
+            print(f"  !! no network file for {acc}")
+            continue
+        orca_in = os.path.join(WORKDIR, f"{acc}.in")
+        orca_out = os.path.join(WORKDIR, f"{acc}.orbits")
+        n, m, load_s = convert(hits[0], orca_in)
+        print(f"[{acc}] {n:,} nodes  {m:,} edges (avg deg {2*m/n:.1f})  "
+              f"-> {os.path.basename(orca_in)} in {human(load_s)}", flush=True)
+        manifest.append({"accession": acc, "nodes": n, "edges": m,
+                         "in": orca_in, "out": orca_out})
+    with open(MANIFEST, "w") as f:
+        json.dump(manifest, f, indent=2)
+    print(f"\nprepped {len(manifest)} species. ORCA input dir: {WORKDIR}")
+    print(f"manifest: {MANIFEST}")
+
+
+def parse():
+    """Trusted step: read .orbits outputs -> graphlet counts -> summary JSON."""
+    with open(MANIFEST) as f:
+        manifest = json.load(f)
+    results = []
+    for e in manifest:
+        if not os.path.exists(e["out"]):
+            print(f"  !! missing ORCA output for {e['accession']} ({e['out']})")
+            continue
+        g = graphlets_from_orbits(e["out"], e["nodes"])
+        results.append({"accession": e["accession"], "nodes": e["nodes"],
+                        "edges": e["edges"], "graphlets": g})
+        print(f"[{e['accession']}] total connected 4-graphlets = "
+              f"{g['total_connected_4graphlets']:,}", flush=True)
     out_json = os.path.join(HERE, "graphlet4_counts.json")
     with open(out_json, "w") as f:
         json.dump(results, f, indent=2)
-    print(f"\nAll done in {human(time.time()-t0)}. Wrote {out_json}")
+    print(f"\nWrote {out_json} ({len(results)} species)")
+
+
+def main():
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    if mode == "--prep":
+        prep(species_dirs(sys.argv[2:]))
+    elif mode == "--parse":
+        parse()
+    else:
+        sys.exit("usage: orca_count4.py --prep [species_dir ...] | --parse")
 
 
 if __name__ == "__main__":
