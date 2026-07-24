@@ -35,9 +35,9 @@ ACCESSIONS_FILE="${3:-}"
 # SLURM_SUBMIT_DIR (cwd at submission time) instead, which is where
 # compute_network_stats.py / aggregate_stats.py actually live.
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-source /work/11301/wsoylemez/vista/philharmonic/sbatch_jobs/common.sh
-module load gcc cuda python3
-source /work/11301/wsoylemez/vista/venv/bin/activate
+# source /work/11301/wsoylemez/vista/philharmonic/sbatch_jobs/common.sh
+# module load gcc cuda python3
+# source /work/11301/wsoylemez/vista/venv/bin/activate
 JOBS="${SLURM_CPUS_PER_TASK:-144}"
 
 mkdir -p "$OUT_DIR/logs"

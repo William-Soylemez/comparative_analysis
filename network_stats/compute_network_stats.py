@@ -14,12 +14,26 @@ count) from a species directory and reports, as JSON:
     - number of PHILHARMONIC clusters
     - number of bridges
     - global clustering coefficient (transitivity)
+    - diameter (approximate, of the largest connected component)
+    - modularity (of the PHILHARMONIC clusters, as a graph partition)
 
 Note: average node/edge connectivity (networkx's `average_node_connectivity`
 and the edge-connectivity analog) were evaluated and dropped. They require
 local connectivity between every pair of nodes via max-flow — benchmarked at
 ~425ms/pair, i.e. ~51 days for the smallest species here (4,555 nodes) even
 restricted to the largest connected component. Not viable at this scale.
+
+Diameter uses networkx's `approximation.diameter` (a constant number of BFS
+sweeps), not the exact `nx.diameter` (all-pairs BFS) — exact diameter is
+O(V*(V+E)), infeasible at the size of the larger species here (tens of
+thousands of nodes). The approximation returns a lower bound on the true
+diameter, not an exact value.
+
+Modularity treats the PHILHARMONIC clusters as a fixed partition and scores
+how well that partition explains the network's community structure (Newman's
+Q). Cluster members not present in the network graph are dropped; any graph
+node not in any cluster is added as its own singleton community so the
+partition covers every node (required by networkx's modularity function).
 
 Single-threaded by design: this is the per-species unit of work for a later
 SLURM array that runs many species in parallel.
@@ -28,7 +42,7 @@ Usage:
     python3 compute_network_stats.py SPECIES_DIR [--skip STAT ...] [--out FILE]
 
 Example:
-    python3 compute_network_stats.py ../GCF_000182965.3 --skip num_bridges
+    python3 compute_network_stats.py ../GCF_000182965.3 --skip num_bridges diameter
 """
 
 import argparse
@@ -39,9 +53,11 @@ import sys
 from statistics import median
 
 import networkx as nx
+from networkx.algorithms import approximation as nx_approx
+from networkx.algorithms.community import modularity as nx_modularity
 from tqdm import tqdm
 
-ALL_SKIPPABLE = ["num_bridges"]
+ALL_SKIPPABLE = ["num_bridges", "diameter"]
 
 
 def find_species_files(species_dir):
@@ -78,6 +94,39 @@ def count_clusters(clusters_path):
         return None
     with open(clusters_path) as f:
         return len(json.load(f))
+
+
+def load_cluster_partition(clusters_path, g):
+    """Return a list of node-sets covering every node in g, one set per
+    PHILHARMONIC cluster plus a singleton set for each unclustered node."""
+    if clusters_path is None:
+        return None
+    with open(clusters_path) as f:
+        clusters = json.load(f)
+
+    graph_nodes = set(g.nodes())
+    partition = []
+    covered = set()
+    for c in clusters.values():
+        members = graph_nodes.intersection(c["members"])
+        if members:
+            partition.append(members)
+            covered.update(members)
+
+    for n in graph_nodes - covered:
+        partition.append({n})
+
+    return partition
+
+
+def compute_diameter(g, largest_cc, quiet=False):
+    """Approximate diameter (lower bound) of the largest connected component."""
+    sub = g.subgraph(largest_cc)
+    if sub.number_of_nodes() < 2:
+        return 0
+    if not quiet:
+        print("computing approximate diameter ...", file=sys.stderr)
+    return nx_approx.diameter(sub)
 
 
 def count_bridges(g, components, quiet=False):
@@ -118,6 +167,14 @@ def compute_stats(species_dir, skip, quiet=False):
         result["num_bridges"] = None
     else:
         result["num_bridges"] = count_bridges(g, components, quiet=quiet)
+
+    if "diameter" in skip:
+        result["diameter"] = None
+    else:
+        result["diameter"] = compute_diameter(g, largest_cc, quiet=quiet)
+
+    partition = load_cluster_partition(clusters_path, g)
+    result["modularity"] = nx_modularity(g, partition) if partition else None
 
     return result
 
