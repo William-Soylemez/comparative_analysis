@@ -10,11 +10,10 @@
 
 # Run IsoRank alignment (run_full_alignment.py) for all 45 species pairs,
 # LCC-restricted networks + bitscore similarity (per the approved plan),
-# fanned out across this node's cores with xargs -P. Each pair is an
-# independent netalign compute_isorank() call.
-#
-# Resume-safe: skips any pair whose <a>_lcc_<b>_lcc_alignment_scores.json
-# already exists, so this can just be resubmitted after a partial run.
+# fanned out across this node's cores with xargs -P. Fan-out logic lives in
+# lib_alignment_phase.sh (shared with 00_run_all.sbatch). Resume-safe:
+# skips any pair whose <a>_lcc_bs_<b>_lcc_bs_alignment_scores.json already
+# exists, so this can just be resubmitted after a partial run.
 #
 # Memory: compute_isorank builds an n1xn1 and an n2xn2 transition matrix per
 # pair. Actual PPI-network node counts (not proteome sizes) top out at
@@ -28,7 +27,7 @@
 # Usage:
 #   sbatch 05_run_all_pairs_alignment.sbatch
 # Requires 04_prepare_networks_and_pairs.sh to have already produced every
-# net/<short>_lcc.tsv and net/<a>_lcc-<b>_lcc.tsv.
+# net/<short>_lcc_bs.tsv and net/<a>_lcc_bs-<b>_lcc_bs.tsv.
 
 set -euo pipefail
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
@@ -42,33 +41,7 @@ source venv/bin/activate
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 JOBS="${SLURM_CPUS_PER_TASK:-144}"
 
-mkdir -p cluster_batch/logs
-
-mapfile -t SHORTS < <(tail -n +2 cluster_batch/species.tsv | cut -f1)
-: > cluster_batch/align_pairs.txt
-for ((i = 0; i < ${#SHORTS[@]}; i++)); do
-    for ((j = i + 1; j < ${#SHORTS[@]}; j++)); do
-        echo "${SHORTS[i]} ${SHORTS[j]}" >> cluster_batch/align_pairs.txt
-    done
-done
-echo "found $(wc -l < cluster_batch/align_pairs.txt) pairs"
-
-run_one() {
-    a="$1"; b="$2"
-    prefix="${a}_lcc_${b}_lcc"
-    if [[ -s "${prefix}_alignment_scores.json" ]]; then
-        echo "skip: $a-$b"
-        return 0
-    fi
-    if python3 run_full_alignment.py "${a}_lcc" "${b}_lcc" \
-            > "cluster_batch/logs/${a}_${b}.log" 2>&1; then
-        echo "done:  $a-$b"
-    else
-        echo "FAILED: $a-$b (see cluster_batch/logs/${a}_${b}.log)"
-    fi
-}
-export -f run_one
-
-xargs -P "$JOBS" -n 2 bash -c 'run_one "$@"' _ < cluster_batch/align_pairs.txt
+source cluster_batch/lib_alignment_phase.sh
+run_alignment_phase
 
 python3 cluster_batch/06_aggregate_summary.py
