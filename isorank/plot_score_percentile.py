@@ -23,9 +23,20 @@ import matplotlib.pyplot as plt
 
 HUE = "#2a78d6"  # sequential single-hue, magnitude encoding — one series, no legend needed
 
+
+def metric_label(name):
+    """Similarity metric used to build net/<name>-<other>.tsv, inferred from
+    the species alias convention used across this project's scripts: "_bs"
+    = build_rblast_bitscore.py (raw bitscore, max across BLAST directions),
+    anything else = build_rblast.py (-log10(evalue), min evalue across
+    directions, i.e. "E-score")."""
+    return "bitscore" if name.endswith("_bs") else "E-score (-log10 evalue)"
+
+
 a, b = sys.argv[1], sys.argv[2]
 PCT = int(sys.argv[3]) if len(sys.argv) > 3 else 100
 prefix = f"{a}_{b}"
+METRIC = metric_label(a)
 
 df = pd.read_csv(f"{prefix}_alignment_scored.tsv", sep="\t")
 scores = np.sort(df["score"].to_numpy())
@@ -69,7 +80,7 @@ def make_plot(yscale, outfile):
                     color="#52514e", rotation=90)
 
     ax.set_title(f"IsoRank alignment scores, {a} <-> {b} — full 0-{PCT}% by percentile band "
-                 f"({yscale} y-axis)\n"
+                 f"({yscale} y-axis) — similarity metric: {METRIC}\n"
                  f"(n={n} pairs total, 100% of the smaller species' nodes matched)", fontsize=11)
     fig.tight_layout()
     fig.savefig(outfile, dpi=150, bbox_inches="tight")
@@ -82,6 +93,7 @@ make_plot("log", f"{prefix}_score_percentile{PCT}_log.png")
 out = {
     "species_a": a,
     "species_b": b,
+    "similarity_metric": METRIC,
     "n_total_pairs": n,
     "pct": PCT,
     "bin_edges_percentile": list(range(PCT + 1)),

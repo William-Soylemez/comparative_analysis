@@ -31,9 +31,20 @@ import matplotlib.pyplot as plt
 
 HUE = "#2a78d6"  # sequential single-hue, magnitude encoding — one series, no legend needed
 
+
+def metric_label(name):
+    """Similarity metric used to build net/<name>-<other>.tsv, inferred from
+    the species alias convention used across this project's scripts: "_bs"
+    = build_rblast_bitscore.py (raw bitscore, max across BLAST directions),
+    anything else = build_rblast.py (-log10(evalue), min evalue across
+    directions, i.e. "E-score")."""
+    return "bitscore" if name.endswith("_bs") else "E-score (-log10 evalue)"
+
+
 a, b = sys.argv[1], sys.argv[2]
 BIN_WIDTH = float(sys.argv[3]) if len(sys.argv) > 3 else 0.1
 prefix = f"{a}_{b}"
+METRIC = metric_label(a)
 
 df = pd.read_csv(f"{prefix}_alignment_scored.tsv", sep="\t")
 scores = df["score"].to_numpy()
@@ -47,13 +58,13 @@ counts, edges = np.histogram(log_score, bins=bins)
 
 fig, ax = plt.subplots(figsize=(11, 5.2))
 ax.bar(edges[:-1], counts, width=BIN_WIDTH * 0.92, align="edge", color=HUE)
-ax.set_xlabel("log10(IsoRank alignment score)")
+ax.set_xlabel(f"log10(IsoRank alignment score)  [similarity metric: {METRIC}]")
 ax.set_ylabel(f"Count of aligned pairs (bin width {BIN_WIDTH})")
 ax.grid(True, axis="y", color="#e6e6e3", linewidth=0.6)
 ax.set_axisbelow(True)
 for spine in ("top", "right"):
     ax.spines[spine].set_visible(False)
-ax.set_title(f"IsoRank alignment score decay curve, {a} <-> {b}\n"
+ax.set_title(f"IsoRank alignment score decay curve, {a} <-> {b} — similarity metric: {METRIC}\n"
              f"(n={n} pairs, 100% of the smaller species' nodes matched; "
              f"higher/closer to 0 = strong match, more negative = near noise floor)",
              fontsize=11)
@@ -65,6 +76,7 @@ print(f"wrote {outfile}")
 out = {
     "species_a": a,
     "species_b": b,
+    "similarity_metric": METRIC,
     "n_pairs": n,
     "bin_width": BIN_WIDTH,
     "bin_edges_log10": edges.tolist(),

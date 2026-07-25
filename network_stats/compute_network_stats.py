@@ -15,10 +15,10 @@ species directory and reports, as JSON:
     - modularity (of the PHILHARMONIC clusters, as a graph partition)
     - cluster_graph: a nested block of stats on the "cluster of clusters"
       graph (see compute_cluster_graph_stats.py) — clustering coefficient,
-      bridges, node/edge connectivity, average node connectivity, all on
-      the cluster-level graph, not the protein-level one. Nested rather
-      than flattened because both graphs use the same field names
-      (node_count, edge_count, ...) for different things.
+      bridges, node/edge connectivity, diameter, modularity, average node
+      connectivity, all on the cluster-level graph, not the protein-level
+      one. Nested rather than flattened because both graphs use the same
+      field names (node_count, edge_count, ...) for different things.
 
 Field-level resume: if --out already exists and parses as JSON, only the
 keys MISSING from it are (re)computed — an already-complete file is a fast
@@ -75,9 +75,11 @@ from tqdm import tqdm
 from compute_cluster_graph_stats import (
     compute_stats as compute_cluster_graph_stats,
     MIN_CROSSING_EDGES as CLUSTER_MIN_CROSSING_EDGES,
+    CHEAP_FIELDS as CLUSTER_CHEAP_FIELDS,
 )
 
-ALL_SKIPPABLE = ["num_bridges", "diameter", "cluster_graph", "cluster_num_bridges", "avg_node_connectivity"]
+ALL_SKIPPABLE = ["num_bridges", "diameter", "cluster_graph", "cluster_num_bridges",
+                 "avg_node_connectivity", "avg_edge_connectivity"]
 
 EXPECTED_KEYS = [
     "node_count", "edge_count", "density", "num_connected_components",
@@ -167,11 +169,28 @@ def count_bridges(g, components, quiet=False):
     return total
 
 
-def compute_stats(species_dir, skip, quiet=False, existing=None):
+def compute_stats(species_dir, skip, quiet=False, existing=None, procs=None):
     existing = dict(existing) if existing else {}
     acc, network_path, clusters_path = find_species_files(species_dir)
 
     missing = [k for k in EXPECTED_KEYS if k not in existing]
+
+    # cluster_graph is present but either its avg_node/edge_connectivity is
+    # null (e.g. an old run's serial budget skip, before
+    # parallel_average_connectivity existed) or it's missing a cheap field
+    # added since (e.g. diameter_largest_cc/modularity) -- retry it now,
+    # unless THIS run is itself asking to skip it. Passing the existing
+    # cluster_graph dict through as `existing` lets compute_cluster_graph_stats
+    # backfill just what's missing without ever recomputing an
+    # already-valid (expensive) avg_node/edge_connectivity.
+    cg = existing.get("cluster_graph")
+    if "cluster_graph" not in missing and cg is not None and "cluster_graph" not in skip:
+        node_missing = cg.get("avg_node_connectivity_largest_cc") is None and "avg_node_connectivity" not in skip
+        edge_missing = cg.get("avg_edge_connectivity_largest_cc") is None and "avg_edge_connectivity" not in skip
+        cheap_missing = any(k not in cg for k in CLUSTER_CHEAP_FIELDS)
+        if node_missing or edge_missing or cheap_missing:
+            missing = missing + ["cluster_graph"]
+
     if not missing:
         if not quiet:
             print(f"species: {acc} -- already complete, nothing to do", file=sys.stderr)
@@ -228,11 +247,58 @@ def compute_stats(species_dir, skip, quiet=False, existing=None):
                 cluster_skip.add("num_bridges")
             if "avg_node_connectivity" in skip:
                 cluster_skip.add("avg_node_connectivity")
-            cs = compute_cluster_graph_stats(species_dir, CLUSTER_MIN_CROSSING_EDGES, cluster_skip, quiet=quiet)
+            if "avg_edge_connectivity" in skip:
+                cluster_skip.add("avg_edge_connectivity")
+            cs = compute_cluster_graph_stats(species_dir, CLUSTER_MIN_CROSSING_EDGES, cluster_skip,
+                                              quiet=quiet, procs=procs, existing=cg)
             cs.pop("species", None)
             result["cluster_graph"] = cs
 
     return result
+
+
+def merge_cluster_graph(mine, disk):
+    """Merge this run's cluster_graph with whatever's on disk right now,
+    pairing each connectivity value with its own meta so a concurrent writer
+    (e.g. the node- and edge-connectivity jobs running as separate,
+    independently-scheduled SLURM jobs against the same --out files) can't
+    clobber the other's freshly-computed field. mine wins for any field it
+    has a real (non-null) value for; disk's value is kept otherwise. The two
+    connectivity fields are handled as (value, meta) pairs specifically so a
+    skip placeholder (a non-null dict: {"skipped": True, ...}) for the OTHER
+    job's metric never overwrites that job's real, already-written result."""
+    if mine is None:
+        return disk
+    if disk is None:
+        return mine
+    merged = dict(disk)
+    skip_keys = {"avg_node_connectivity_largest_cc", "avg_node_connectivity_meta",
+                 "avg_edge_connectivity_largest_cc", "avg_edge_connectivity_meta"}
+    for k, v in mine.items():
+        if k not in skip_keys and v is not None:
+            merged[k] = v
+    for kind in ("node", "edge"):
+        val_key, meta_key = f"avg_{kind}_connectivity_largest_cc", f"avg_{kind}_connectivity_meta"
+        if mine.get(val_key) is not None:
+            merged[val_key] = mine[val_key]
+            merged[meta_key] = mine.get(meta_key)
+    return merged
+
+
+def merge_results(mine, disk):
+    """Same idea as merge_cluster_graph, one level up: top-level fields are
+    cheap/deterministic (same graph + threshold always gives the same
+    answer), so a plain non-null-wins merge is safe for them; cluster_graph
+    needs the paired value+meta treatment above."""
+    if not disk:
+        return mine
+    merged = dict(disk)
+    for k, v in mine.items():
+        if k == "cluster_graph":
+            merged[k] = merge_cluster_graph(v, disk.get("cluster_graph"))
+        elif v is not None:
+            merged[k] = v
+    return merged
 
 
 def main():
@@ -243,6 +309,11 @@ def main():
     ap.add_argument("--out", default=None, help="Output JSON path (default: print to stdout)")
     ap.add_argument("--force", action="store_true",
                      help="Recompute everything even if --out already has complete stats")
+    ap.add_argument("--procs", type=int, default=os.cpu_count(),
+                     help="worker processes for cluster_graph avg_node_connectivity (default: all "
+                          "cores) -- give this the whole node when backfilling that one field; leave "
+                          "it at 1 if you're instead fanning many species out across cores yourself "
+                          "(e.g. via xargs -P) for the other, uniformly-cheap stats")
     ap.add_argument("--quiet", action="store_true",
                      help="Disable progress bars (use when running many species in parallel)")
     args = ap.parse_args()
@@ -255,15 +326,27 @@ def main():
         except (json.JSONDecodeError, OSError):
             existing = {}
 
-    result = compute_stats(args.species_dir, set(args.skip), quiet=args.quiet, existing=existing)
+    result = compute_stats(args.species_dir, set(args.skip), quiet=args.quiet, existing=existing, procs=args.procs)
 
-    out_json = json.dumps(result, indent=2)
     if args.out:
+        # Re-read right before writing (rather than relying on the `existing`
+        # snapshot read at the start, which may be hours stale for an
+        # expensive connectivity computation) and merge, so a differently
+        # scheduled job computing the OTHER connectivity metric against the
+        # same --out file can't have its result clobbered by this write.
+        fresh_on_disk = {}
+        if os.path.exists(args.out):
+            try:
+                with open(args.out) as f:
+                    fresh_on_disk = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                fresh_on_disk = {}
+        result = merge_results(result, fresh_on_disk)
         with open(args.out, "w") as f:
-            f.write(out_json + "\n")
+            f.write(json.dumps(result, indent=2) + "\n")
         print(f"wrote {args.out}", file=sys.stderr)
     else:
-        print(out_json)
+        print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
