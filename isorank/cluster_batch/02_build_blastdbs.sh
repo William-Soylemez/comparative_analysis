@@ -1,0 +1,33 @@
+#!/bin/bash
+# Build a BLAST protein DB under blastdb/<short>.* for every species with a
+# proteomes/<short>.faa that doesn't already have one. Cheap (seconds per
+# species) -- fine to run on the login node right after 01_download_proteomes.sh,
+# or as a quick non-parallel step at the top of the sbatch blast job.
+#
+# Usage: bash 02_build_blastdbs.sh
+# Expects species.tsv, ../proteomes/<short>.faa
+# Writes ../blastdb/<short>.{phr,pin,psq,...}
+
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")"
+mkdir -p ../blastdb
+
+command -v makeblastdb >/dev/null || {
+    echo "ERROR: makeblastdb not found on PATH -- load the BLAST+ module first" \
+         "(e.g. 'module load blast' -- check 'module spider blast' for the exact name on this system)." >&2
+    exit 1
+}
+
+tail -n +2 species.tsv | while IFS=$'\t' read -r short acc organism species_dir; do
+    if [[ -s "../blastdb/${short}.pin" ]]; then
+        echo "skip: $short -- blastdb/${short}.pin already exists"
+        continue
+    fi
+    faa="../proteomes/${short}.faa"
+    if [[ ! -s "$faa" ]]; then
+        echo "  ! skipping $short: no proteomes/${short}.faa (run 01_download_proteomes.sh first)" >&2
+        continue
+    fi
+    echo "building blastdb: $short"
+    makeblastdb -in "$faa" -dbtype prot -out "../blastdb/${short}"
+done
