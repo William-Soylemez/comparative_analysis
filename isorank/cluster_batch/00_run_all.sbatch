@@ -48,7 +48,11 @@ cd "$SCRIPT_DIR"
 
 source /work/11301/wsoylemez/vista/philharmonic/sbatch_jobs/common.sh
 module load gcc cuda python3
-module load blast   # adjust if Vista uses a different module name -- check `module spider blast`
+# Vista has no "blast" module (confirmed via `module spider blast` -> not
+# found) -- using NCBI's static BLAST+ binaries instead, unpacked once under
+# vista/ncbi-blast-current (see cluster_batch README/chat history for the
+# download+symlink one-liner). Adjust this path if you installed elsewhere.
+export PATH="/work/11301/wsoylemez/vista/ncbi-blast-current/bin:$PATH"
 source /work/11301/wsoylemez/vista/venv/bin/activate
 JOBS="${SLURM_CPUS_PER_TASK:-144}"
 

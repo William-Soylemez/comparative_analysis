@@ -13,8 +13,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 mkdir -p ../blastdb
 
 command -v makeblastdb >/dev/null || {
-    echo "ERROR: makeblastdb not found on PATH -- load the BLAST+ module first" \
-         "(e.g. 'module load blast' -- check 'module spider blast' for the exact name on this system)." >&2
+    echo "ERROR: makeblastdb not found on PATH. Vista has no 'blast' module" \
+         "(confirmed via 'module spider blast' -> not found) -- if running this" \
+         "standalone (not via 00_run_all.sbatch/03_run_all_pairs_blast.sbatch," \
+         "which already set this), first run:" \
+         "  export PATH=\"/work/11301/wsoylemez/vista/ncbi-blast-current/bin:\$PATH\"" >&2
     exit 1
 }
 
