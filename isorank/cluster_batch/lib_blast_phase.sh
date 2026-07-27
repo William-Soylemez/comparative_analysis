@@ -9,7 +9,7 @@ run_blast_phase() {
     mkdir -p ../blast_out logs
 
     : > pair_jobs.txt
-    mapfile -t SHORTS < <(tail -n +2 species.tsv | cut -f1)
+    mapfile -t SHORTS < <(tail -n +2 species.txt | cut -f1)
     for ((i = 0; i < ${#SHORTS[@]}; i++)); do
         for ((j = i + 1; j < ${#SHORTS[@]}; j++)); do
             echo "${SHORTS[i]} ${SHORTS[j]}" >> pair_jobs.txt

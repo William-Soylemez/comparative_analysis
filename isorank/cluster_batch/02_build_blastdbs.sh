@@ -21,7 +21,7 @@ command -v makeblastdb >/dev/null || {
     exit 1
 }
 
-tail -n +2 species.tsv | while IFS=$'\t' read -r short acc organism species_dir; do
+tail -n +2 species.txt | while IFS=$'\t' read -r short acc organism species_dir; do
     if [[ -s "../blastdb/${short}.pin" ]]; then
         echo "skip: $short -- blastdb/${short}.pin already exists"
         continue

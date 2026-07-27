@@ -26,7 +26,7 @@ FASTA_BASE_DIR="${1:-}"
 OUT_DIR=../proteomes
 mkdir -p "$OUT_DIR"
 
-tail -n +2 species.tsv | while IFS=$'\t' read -r short acc organism species_dir; do
+tail -n +2 species.txt | while IFS=$'\t' read -r short acc organism species_dir; do
     faa="$OUT_DIR/${short}.faa"
     if [[ -s "$faa" ]]; then
         echo "skip: $short ($acc) -- $faa already exists"

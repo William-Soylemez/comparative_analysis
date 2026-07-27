@@ -31,7 +31,7 @@ mkdir -p ../net
 BASE_DIR=../..  # comparative_analysis/, containing <species_dir>/<acc>_network.positive.tsv
 
 echo "== extracting 2-column edge lists =="
-tail -n +2 species.tsv | while IFS=$'\t' read -r short acc organism species_dir; do
+tail -n +2 species.txt | while IFS=$'\t' read -r short acc organism species_dir; do
     out="../net/${short}.tsv"
     if [[ -s "$out" ]]; then
         echo "skip: $short -- $out already exists"
@@ -47,7 +47,7 @@ tail -n +2 species.tsv | while IFS=$'\t' read -r short acc organism species_dir;
 done
 
 echo "== restricting every species to its largest connected component =="
-mapfile -t SHORTS < <(tail -n +2 species.tsv | cut -f1)
+mapfile -t SHORTS < <(tail -n +2 species.txt | cut -f1)
 ( cd .. && source venv/bin/activate && python3 make_lcc_networks.py "${SHORTS[@]}" )
 
 echo "== aliasing to _lcc_bs so metric_label() detects bitscore correctly =="

@@ -10,7 +10,7 @@
 run_alignment_phase() {
     mkdir -p cluster_batch/logs
 
-    mapfile -t SHORTS < <(tail -n +2 cluster_batch/species.tsv | cut -f1)
+    mapfile -t SHORTS < <(tail -n +2 cluster_batch/species.txt | cut -f1)
     : > cluster_batch/align_pairs.txt
     for ((i = 0; i < ${#SHORTS[@]}; i++)); do
         for ((j = i + 1; j < ${#SHORTS[@]}; j++)); do

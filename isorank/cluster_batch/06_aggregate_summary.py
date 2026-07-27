@@ -27,7 +27,7 @@ for path in sorted(glob.glob(os.path.join(ISORANK_DIR, "*_lcc_bs_*_alignment_sco
 
 missing = []
 shorts = []
-with open(os.path.join(HERE, "species.tsv")) as f:
+with open(os.path.join(HERE, "species.txt")) as f:
     reader = csv.DictReader(f, delimiter="\t")
     shorts = [r["short"] for r in reader]
 

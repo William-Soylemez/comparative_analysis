@@ -71,6 +71,13 @@ bash 04_prepare_networks_and_pairs.sh
 
 echo "############ [5/6] all-pairs IsoRank alignment ############"
 cd ..   # isorank/ -- run_full_alignment.py reads net/... relative to here
+# Re-activate the isorank-specific venv (netalign/numpy/pandas live here, not
+# in the general vista/venv sourced at the top of this script) -- matches
+# what the standalone 05_run_all_pairs_alignment.sbatch does, and what
+# 04_prepare_networks_and_pairs.sh / 07_plot_all_pairs.sh already do
+# internally. Without this, phase 5 would silently keep running in the
+# general venv and fail with ModuleNotFoundError: netalign.
+source venv/bin/activate
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 source cluster_batch/lib_alignment_phase.sh
 run_alignment_phase
