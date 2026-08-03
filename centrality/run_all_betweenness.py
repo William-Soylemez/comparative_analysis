@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Run betweenness-centrality threshold analysis across all 11 local fungal species.
+Run betweenness-centrality threshold analysis across all 10 local fungal species.
 
 For each species it computes exact, unweighted, size-normalized betweenness
 (same method as betweenness_threshold_plot.py), writes the per-species decay
 png + json, and records the top-5% cutoff. It then draws one overlay plot of
-all 11 decay curves and a combined summary json, so you can confirm the elbow
+all 10 decay curves and a combined summary json, so you can confirm the elbow
 lands in a consistent place before committing to the top-5% "high-centrality"
 definition.
 
@@ -14,8 +14,8 @@ also shows a live elapsed timer while its (blocking, C-level) betweenness call
 runs in a worker process, so a slow species never looks hung.
 
 Usage (from this directory):
-    ../isorank/venv/bin/python run_all_betweenness.py
-    ../isorank/venv/bin/python run_all_betweenness.py --max-pct 20 --step 0.5
+    ../venv/bin/python run_all_betweenness.py
+    ../venv/bin/python run_all_betweenness.py --max-pct 20 --step 0.5
 
 By default it discovers ../input/GC[AF]_* species dirs that contain a network file.
 """
@@ -40,7 +40,6 @@ NAMES = {
     "GCF_000146045.2": "S. cerevisiae",
     "GCF_000149245.1": "C. neoformans",
     "GCF_000203795.2": "B. dendrobatidis",
-    "GCF_000146465.1": "E. intestinalis",
     "GCF_026210795.1": "R. irregularis",
     "GCF_025024165.1": "K. alabastrina",
     "GCA_014872705.1": "A. bisporus",
@@ -127,7 +126,7 @@ def main():
     ax.set_axisbelow(True)
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
-    ax.set_title("Betweenness threshold decay across 11 fungal species\n"
+    ax.set_title("Betweenness threshold decay across 10 fungal species\n"
                  "(exact, unweighted, size-normalized; dashed line = chosen top-5% cutoff)",
                  fontsize=12)
     ax.legend(fontsize=8, ncol=2, frameon=False)

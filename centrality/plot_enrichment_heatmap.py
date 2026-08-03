@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Heatmap of GO enrichment in high-betweenness ("connector") proteins across the
-11 fungal species. Rows = GO categories, columns = species (grouped by phylum
+10 fungal species. Rows = GO categories, columns = species (grouped by phylum
 from early-diverging on the right to Dikarya on the left), cell = fold
 enrichment, shown only where the term is significant (q <= --qmax); other cells
 are left blank so the significant pattern is what you read.
@@ -11,8 +11,8 @@ legend, just a colorbar; every shown cell is also direct-labeled with its fold
 value, so magnitude never rests on color alone.
 
 Usage (from this directory):
-    ../isorank/venv/bin/python plot_enrichment_heatmap.py slim
-    ../isorank/venv/bin/python plot_enrichment_heatmap.py direct --min-species 4 --max-rows 30
+    ../venv/bin/python plot_enrichment_heatmap.py slim
+    ../venv/bin/python plot_enrichment_heatmap.py direct --min-species 4 --max-rows 30
 Reads <acc>_enrichment_<tag>.tsv (from fisher_enrichment.py).
 """
 
@@ -46,7 +46,6 @@ COLUMN_ORDER = [
     ("GCF_025024165.1", "K. alabastrina", "Zoopago."),
     ("GCF_000203795.2", "B. dendrobatidis", "Chytrid."),
     ("GCA_025594325.1", "B. emersonii", "Blasto."),
-    ("GCF_000146465.1", "E. intestinalis", "Micro."),
 ]
 
 
@@ -71,7 +70,7 @@ def main():
                     help="keep a category if significant in >= this many species")
     ap.add_argument("--max-rows", type=int, default=28)
     ap.add_argument("--exclude", nargs="*", default=[],
-                    help="accession(s) to drop from the columns, e.g. GCF_000146465.1")
+                    help="accession(s) to drop from the columns, e.g. GCA_025594325.1")
     ap.add_argument("--dir", default="results",
                     help="dir to read enrichment TSVs from and write the heatmap to (default results/)")
     args = ap.parse_args()

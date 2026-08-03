@@ -14,7 +14,7 @@
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."   # isorank/
-source venv/bin/activate
+source ../venv/bin/activate
 
 mapfile -t SHORTS < <(tail -n +2 cluster_batch/species.txt | cut -f1)
 n_ok=0

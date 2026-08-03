@@ -1,0 +1,19 @@
+# Python dependencies for the comparative_analysis scripts.
+# Pinned to the versions in the project venv. Recreate with:
+#     python3 -m venv venv
+#     ./venv/bin/pip install -r requirements.txt
+#
+# NOTE: the isorank/ analyses additionally require NetworkAlignmentTools
+# ("netalign"), which is NOT on PyPI -- it's installed from a local checkout
+# of the netalign repo and pulls in torch and its own deps:
+#     ./venv/bin/pip install /path/to/netalign_repo
+# Everything outside isorank/ (centrality, graphlets, network_stats) runs
+# without it.
+
+numpy==2.2.6
+scipy==1.15.3
+pandas==2.3.3
+matplotlib==3.10.9
+networkx==3.4.2
+python-igraph==1.0.0
+tqdm==4.69.0

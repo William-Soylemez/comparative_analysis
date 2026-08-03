@@ -48,7 +48,7 @@ done
 
 echo "== restricting every species to its largest connected component =="
 mapfile -t SHORTS < <(tail -n +2 species.txt | cut -f1)
-( cd .. && source venv/bin/activate && python3 make_lcc_networks.py "${SHORTS[@]}" )
+( cd .. && source ../venv/bin/activate && python3 make_lcc_networks.py "${SHORTS[@]}" )
 
 echo "== aliasing to _lcc_bs so metric_label() detects bitscore correctly =="
 for short in "${SHORTS[@]}"; do
@@ -56,7 +56,7 @@ for short in "${SHORTS[@]}"; do
 done
 
 echo "== building bitscore-based similarity files for all 45 pairs =="
-( cd .. && source venv/bin/activate
+( cd .. && source ../venv/bin/activate
   for ((i = 0; i < ${#SHORTS[@]}; i++)); do
       for ((j = i + 1; j < ${#SHORTS[@]}; j++)); do
           a="${SHORTS[i]}"; b="${SHORTS[j]}"

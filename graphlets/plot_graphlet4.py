@@ -20,7 +20,7 @@ RESULTS = os.path.join(HERE, "results")
 
 # --- representative species: sparse -> mid -> dense, 3 different phyla ---
 SPECIES = [
-    ("GCF_000146465.1", "E. intestinalis\n(Microsporidia, avg deg 39)", "#2a78d6"),
+    ("GCF_000203795.2", "B. dendrobatidis\n(Chytridiomycota, avg deg 70)", "#2a78d6"),
     ("GCF_000182925.2", "N. crassa\n(Ascomycota, avg deg 113)",       "#1baf7a"),
     ("GCF_000149245.1", "C. neoformans\n(Basidiomycota, avg deg 420)", "#eda100"),
 ]

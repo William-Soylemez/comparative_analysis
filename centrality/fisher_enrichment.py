@@ -24,9 +24,9 @@ Design notes:
   * Term names/namespaces come from go_data/go-basic.obo (reusing goslim_util).
 
 Usage (from this directory):
-    ../isorank/venv/bin/python fisher_enrichment.py                 # all species, top 5%, direct
-    ../isorank/venv/bin/python fisher_enrichment.py --pct 5 --propagate
-    ../isorank/venv/bin/python fisher_enrichment.py --parent .. --min-count 5 --qmax 0.05
+    ../venv/bin/python fisher_enrichment.py                 # all species, top 5%, direct
+    ../venv/bin/python fisher_enrichment.py --pct 5 --propagate
+    ../venv/bin/python fisher_enrichment.py --parent .. --min-count 5 --qmax 0.05
 """
 
 import argparse
