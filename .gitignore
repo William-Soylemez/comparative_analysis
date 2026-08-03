@@ -11,3 +11,4 @@ venv
 blastdb
 go_data
 proteomes
+graphlets

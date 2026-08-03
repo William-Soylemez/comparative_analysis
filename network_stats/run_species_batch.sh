@@ -44,18 +44,41 @@ JOBS="${SLURM_CPUS_PER_TASK:-144}"
 
 mkdir -p "$OUT_DIR/logs"
 
+# Print exactly what was resolved before doing anything else -- a bad path,
+# an empty/missing accessions file, or a directory-naming mismatch should be
+# obvious from this instead of inferred later from "found 0 species dirs".
+echo "resolved cwd: $(pwd)"
+echo "BASE_DIR: $BASE_DIR"
+echo "OUT_DIR: $OUT_DIR"
 if [[ -n "$ACCESSIONS_FILE" ]]; then
-    # One species dir per accession: <base_dir>/<acc>_results, skipping any
-    # that don't exist or lack a network file (with a warning).
+    if [[ -f "$ACCESSIONS_FILE" ]]; then
+        echo "ACCESSIONS_FILE: $ACCESSIONS_FILE ($(wc -l < "$ACCESSIONS_FILE") lines)"
+    else
+        echo "ACCESSIONS_FILE: $ACCESSIONS_FILE -- DOES NOT EXIST at this path"
+    fi
+else
+    echo "ACCESSIONS_FILE: <none, auto-discovering all species under BASE_DIR>"
+fi
+
+if [[ -n "$ACCESSIONS_FILE" ]]; then
+    # One species dir per accession -- tries <base_dir>/<acc>_results first
+    # (the philharmonic pipeline's per-species output naming), then falls
+    # back to <base_dir>/<acc> directly (some bulk result directories are
+    # already named by bare accession), skipping any accession that matches
+    # neither (with a warning).
     : > "$OUT_DIR/species_list.txt"
     while read -r acc; do
+        acc="${acc%$'\r'}"  # strip a trailing \r in case the file has Windows line endings
         [[ -z "$acc" || "$acc" == \#* ]] && continue
-        d="$BASE_DIR/${acc}_results"
-        if compgen -G "$d/*_network.positive.tsv" > /dev/null; then
-            echo "$d" >> "$OUT_DIR/species_list.txt"
-        else
-            echo "  ! skipping $acc: no *_network.positive.tsv in $d" >&2
-        fi
+        found=""
+        for d in "$BASE_DIR/${acc}_results" "$BASE_DIR/${acc}"; do
+            if compgen -G "$d/*_network.positive.tsv" > /dev/null; then
+                echo "$d" >> "$OUT_DIR/species_list.txt"
+                found=1
+                break
+            fi
+        done
+        [[ -z "$found" ]] && echo "  ! skipping $acc: no *_network.positive.tsv in $BASE_DIR/${acc}_results or $BASE_DIR/${acc}" >&2
     done < "$ACCESSIONS_FILE"
 else
     # One species dir per line: any immediate subdirectory of BASE_DIR that
