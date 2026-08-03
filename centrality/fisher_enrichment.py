@@ -182,7 +182,7 @@ def enrich_species(species_dir, acc, pct, min_count, ancestors, alt, obsolete, s
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--parent", default="..")
+    ap.add_argument("--parent", default="../input")
     ap.add_argument("--centrality", choices=["betweenness", "degree"], default="betweenness",
                     help="node ranking for the high-centrality set (default betweenness)")
     ap.add_argument("--pct", type=float, default=5.0, help="top %% by centrality (default 5)")
@@ -193,8 +193,9 @@ def main():
     ap.add_argument("--slim", nargs="?", const="../go_data/goslim_generic.obo", default=None,
                     help="roll terms up to GO-slim categories (default slim: goslim_generic.obo)")
     ap.add_argument("--obo", default="../go_data/go-basic.obo")
-    ap.add_argument("--outdir", default=".")
+    ap.add_argument("--outdir", default="results")
     args = ap.parse_args()
+    os.makedirs(args.outdir, exist_ok=True)
 
     species_dirs = [d for d in sorted(glob.glob(os.path.join(args.parent, "GC[AF]_*")))
                     if os.path.isdir(d) and glob.glob(os.path.join(d, "*_network.positive.tsv"))]

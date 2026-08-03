@@ -17,7 +17,7 @@ Usage (from this directory):
     ../isorank/venv/bin/python run_all_betweenness.py
     ../isorank/venv/bin/python run_all_betweenness.py --max-pct 20 --step 0.5
 
-By default it discovers ../GC[AF]_* species dirs that contain a network file.
+By default it discovers ../input/GC[AF]_* species dirs that contain a network file.
 """
 
 import argparse
@@ -70,15 +70,16 @@ def discover(parent):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--parent", default="..", help="dir holding the species dirs (default ..)")
+    ap.add_argument("--parent", default="../input", help="dir holding the species dirs (default ../input)")
     ap.add_argument("--max-pct", type=float, default=20.0)
     ap.add_argument("--step", type=float, default=0.5)
-    ap.add_argument("--outdir", default=".", help="where to write outputs (default .)")
+    ap.add_argument("--outdir", default="results", help="where to write outputs (default results/)")
     args = ap.parse_args()
 
     species_dirs = discover(args.parent)
     if not species_dirs:
         raise SystemExit(f"no species dirs with a network file under {args.parent}")
+    os.makedirs(args.outdir, exist_ok=True)
 
     results = {}
     grand_t0 = time.time()

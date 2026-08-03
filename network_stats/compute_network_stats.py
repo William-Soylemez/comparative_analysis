@@ -55,9 +55,9 @@ Usage:
     python3 compute_network_stats.py SPECIES_DIR [--skip STAT ...] [--out FILE] [--force]
 
 Example:
-    python3 compute_network_stats.py ../GCF_000182965.3 --out out/GCF_000182965.3_stats.json
+    python3 compute_network_stats.py ../input/GCF_000182965.3 --out out/GCF_000182965.3_stats.json
     # rerun later after a new stat is added -- only computes what's missing:
-    python3 compute_network_stats.py ../GCF_000182965.3 --out out/GCF_000182965.3_stats.json
+    python3 compute_network_stats.py ../input/GCF_000182965.3 --out out/GCF_000182965.3_stats.json
 """
 
 import argparse
@@ -303,7 +303,7 @@ def merge_results(mine, disk):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("species_dir", help="Path to a species directory (e.g. ../GCF_000182965.3)")
+    ap.add_argument("species_dir", help="Path to a species directory (e.g. ../input/GCF_000182965.3)")
     ap.add_argument("--skip", nargs="+", default=[], choices=ALL_SKIPPABLE,
                      help=f"Stats to skip (set to null in output) to save time: {ALL_SKIPPABLE}")
     ap.add_argument("--out", default=None, help="Output JSON path (default: print to stdout)")

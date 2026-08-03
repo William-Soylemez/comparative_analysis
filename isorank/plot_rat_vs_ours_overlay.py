@@ -18,6 +18,7 @@ Expects paper_reference_check/bakers_rat_alignment_scored.tsv,
         ncrassa_bs_calbicans_bs_alignment_scored.tsv
 """
 
+import os
 import json
 import numpy as np
 import pandas as pd
@@ -30,8 +31,8 @@ BIN_WIDTH = 0.5
 
 series = [
     ("rat (paper reference, bakers<->rat)", "paper_reference_check/bakers_rat_alignment_scored.tsv"),
-    ("ncrassa<->calbicans, E-score (-log10 evalue)", "ncrassa_calbicans_alignment_scored.tsv"),
-    ("ncrassa<->calbicans, bitscore", "ncrassa_bs_calbicans_bs_alignment_scored.tsv"),
+    ("ncrassa<->calbicans, E-score (-log10 evalue)", "results/ncrassa_calbicans_alignment_scored.tsv"),
+    ("ncrassa<->calbicans, bitscore", "results/ncrassa_bs_calbicans_bs_alignment_scored.tsv"),
 ]
 
 data = []
@@ -61,9 +62,10 @@ ax.set_title("IsoRank alignment score distributions: paper's rat reference vs. o
               "(density-normalized so differing sample sizes are comparable; higher/closer to 0 = stronger match)",
               fontsize=11)
 fig.tight_layout()
-fig.savefig("rat_vs_ours_overlay.png", dpi=150, bbox_inches="tight")
-print("wrote rat_vs_ours_overlay.png")
+os.makedirs("results", exist_ok=True)
+fig.savefig("results/rat_vs_ours_overlay.png", dpi=150, bbox_inches="tight")
+print("wrote results/rat_vs_ours_overlay.png")
 
-with open("rat_vs_ours_overlay.json", "w") as f:
+with open("results/rat_vs_ours_overlay.json", "w") as f:
     json.dump(out, f, indent=2)
-print("wrote rat_vs_ours_overlay.json")
+print("wrote results/rat_vs_ours_overlay.json")

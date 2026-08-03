@@ -22,7 +22,7 @@ Usage:
     python3 betweenness_threshold_plot.py SPECIES_DIR [--max-pct 20] [--step 0.5]
 
 Example:
-    python3 betweenness_threshold_plot.py ../GCF_000146045.2   # S. cerevisiae
+    python3 betweenness_threshold_plot.py ../input/GCF_000146045.2   # S. cerevisiae
 """
 
 import argparse
@@ -81,8 +81,9 @@ def decay_summary(bc, n, max_pct=20.0, step=0.5, marks=(1, 5, 10)):
     return pcts, thresholds, cutoffs
 
 
-def plot_decay(acc, g_n, g_m, bc, outdir=".", max_pct=20.0, step=0.5):
+def plot_decay(acc, g_n, g_m, bc, outdir="results", max_pct=20.0, step=0.5):
     """Write <acc>_betweenness_decay.{png,json}; return the summary dict."""
+    os.makedirs(outdir, exist_ok=True)
     n = g_n
     pcts, thresholds, cutoffs = decay_summary(bc, n, max_pct, step)
     bc_sorted = np.sort(bc)[::-1]
@@ -136,6 +137,7 @@ def main():
                     help="right edge of the percentile sweep (default 20)")
     ap.add_argument("--step", type=float, default=0.5,
                     help="percentile bucket width (default 0.5)")
+    ap.add_argument("--outdir", default="results", help="where to write outputs (default results/)")
     args = ap.parse_args()
 
     acc = os.path.basename(args.species_dir.rstrip("/"))
@@ -151,9 +153,9 @@ def main():
     print(f"betweenness: min={bc.min():.3e} median={np.median(bc):.3e} "
           f"max={bc.max():.3e}")
 
-    out = plot_decay(acc, n, m, bc, outdir=".", max_pct=args.max_pct, step=args.step)
-    print(f"wrote {acc}_betweenness_decay.png")
-    print(f"wrote {acc}_betweenness_decay.json")
+    out = plot_decay(acc, n, m, bc, outdir=args.outdir, max_pct=args.max_pct, step=args.step)
+    print(f"wrote {os.path.join(args.outdir, acc + '_betweenness_decay.png')}")
+    print(f"wrote {os.path.join(args.outdir, acc + '_betweenness_decay.json')}")
     c = out["top_pct_cutoffs"]["5"]
     print(f"top 5% cutoff: {c['n_nodes']} nodes, threshold {c['threshold']:.3e}")
 

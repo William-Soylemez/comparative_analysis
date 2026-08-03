@@ -62,7 +62,7 @@ Usage:
         [--skip STAT ...] [--out FILE] [--procs N] [--force] [--quiet]
 
 Example:
-    python3 compute_cluster_graph_stats.py ../GCF_000182965.3 --out out.json --procs 144
+    python3 compute_cluster_graph_stats.py ../input/GCF_000182965.3 --out out.json --procs 144
 """
 
 import argparse
@@ -370,7 +370,7 @@ def compute_stats(species_dir, min_crossing, skip, quiet=False, procs=None, exis
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("species_dir", help="Path to a species directory (e.g. ../GCF_000182965.3)")
+    ap.add_argument("species_dir", help="Path to a species directory (e.g. ../input/GCF_000182965.3)")
     ap.add_argument("--min-crossing-edges", type=int, default=MIN_CROSSING_EDGES,
                      help=f"Minimum crossing protein-protein edges for a cluster-graph edge (default {MIN_CROSSING_EDGES})")
     ap.add_argument("--skip", nargs="+", default=[], choices=ALL_SKIPPABLE,

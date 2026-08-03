@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+RESULTS = os.path.join(HERE, "results")
 
 # --- representative species: sparse -> mid -> dense, 3 different phyla ---
 SPECIES = [
@@ -31,7 +32,7 @@ CLASSES = [("P4_path", "P4\npath"), ("claw_star", "claw\n(3-star)"),
 INK, INK2, MUTED = "#0b0b0b", "#52514e", "#898781"
 GRID, SURFACE = "#e1e0d9", "#fcfcfb"
 
-data = {e["accession"]: e for e in json.load(open(os.path.join(HERE, "graphlet4_counts.json")))}
+data = {e["accession"]: e for e in json.load(open(os.path.join(RESULTS, "graphlet4_counts.json")))}
 
 counts = np.array([[data[acc]["graphlets"][k] for k, _ in CLASSES]
                    for acc, _, _ in SPECIES], dtype=float)          # [species, class]
@@ -94,7 +95,8 @@ fig.text(0.06, 0.005,
          "K4 is the 4-clique).",
          fontsize=8, color=MUTED, ha="left")
 fig.tight_layout(rect=[0, 0.03, 1, 0.94])
-out = os.path.join(HERE, "graphlet4_profiles.png")
+os.makedirs(RESULTS, exist_ok=True)
+out = os.path.join(RESULTS, "graphlet4_profiles.png")
 fig.savefig(out, dpi=200)
 print("wrote", out)
 

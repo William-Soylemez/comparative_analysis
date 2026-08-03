@@ -10,7 +10,7 @@ from collections import defaultdict
 random.seed(0)
 
 align = []
-with open("ncrassa_calbicans_alignment.tsv") as f:
+with open("results/ncrassa_calbicans_alignment.tsv") as f:
     r = csv.reader(f, delimiter="\t")
     next(r)
     for row in r:
@@ -42,8 +42,8 @@ def load_go(path):
             p2go[row["prot_id"]] = {g for g in (row.get("GO_list") or "").split(";") if g}
     return p2go
 
-go_n = load_go("../GCF_000182925.2/GCF_000182925.2_GO_map.csv")
-go_c = load_go("../GCF_000182965.3/GCF_000182965.3_GO_map.csv")
+go_n = load_go("../input/GCF_000182925.2/GCF_000182925.2_GO_map.csv")
+go_c = load_go("../input/GCF_000182965.3/GCF_000182965.3_GO_map.csv")
 
 def share_go(n, c):
     return len(go_n.get(n, set()) & go_c.get(c, set())) > 0

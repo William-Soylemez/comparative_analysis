@@ -22,7 +22,7 @@ CALIB = os.path.join(BUILD, "calib")
 VIN = os.path.join(BUILD, "valid.in")
 VORB = os.path.join(BUILD, "valid.orbits5")
 VBRUTE = os.path.join(BUILD, "valid_brute.json")
-TABLE = os.path.join(HERE, "orbit5_reduction.json")
+TABLE = os.path.join(HERE, "results", "orbit5_reduction.json")
 
 
 def cert_of(g):

@@ -18,9 +18,9 @@ Usage (on a compute node, NOT the login node):
     python3 bench_node_connectivity.py SPECIES_DIR [--pairs 500] [--procs N] [--serial-sample 15]
 
 Example:
-    python3 bench_node_connectivity.py ../GCF_000182965.3 --pairs 500
+    python3 bench_node_connectivity.py ../input/GCF_000182965.3 --pairs 500
     # or grab all cores on the node:
-    python3 bench_node_connectivity.py ../GCF_000182965.3 --pairs 2000 --procs 144
+    python3 bench_node_connectivity.py ../input/GCF_000182965.3 --pairs 2000 --procs 144
 """
 
 import argparse

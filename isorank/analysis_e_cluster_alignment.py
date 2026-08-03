@@ -37,6 +37,7 @@ Outputs cluster_alignment.json + cluster_alignment.png.
 import argparse
 import csv
 import json
+import os
 from collections import defaultdict
 
 import numpy as np
@@ -157,11 +158,11 @@ def plot(scores, outfile, label_a, label_b, min_mapped):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--net1_dir", default="../GCF_000182925.2")
-    ap.add_argument("--net2_dir", default="../GCF_000182965.3")
+    ap.add_argument("--net1_dir", default="../input/GCF_000182925.2")
+    ap.add_argument("--net2_dir", default="../input/GCF_000182965.3")
     ap.add_argument("--net1_name", default="GCF_000182925.2")
     ap.add_argument("--net2_name", default="GCF_000182965.3")
-    ap.add_argument("--alignment", default="ncrassa_calbicans_alignment_full.tsv")
+    ap.add_argument("--alignment", default="results/ncrassa_calbicans_alignment_full.tsv")
     ap.add_argument("--min_mapped", type=int, default=5)
     args = ap.parse_args()
 
@@ -201,7 +202,8 @@ def main():
         vals = [s[m] for s in scores]
         print(f"  median {m}: {np.median(vals):.3f}  (mean {np.mean(vals):.3f})")
 
-    plot(scores, "cluster_alignment.png", args.net1_name, args.net2_name, args.min_mapped)
+    os.makedirs("results", exist_ok=True)
+    plot(scores, "results/cluster_alignment.png", args.net1_name, args.net2_name, args.min_mapped)
 
     out = {
         "params": {
@@ -217,9 +219,9 @@ def main():
         "medians": {m: float(np.median([s[m] for s in scores])) for m in ("EC", "ICS", "S3")},
         "per_cluster": scores,
     }
-    with open("cluster_alignment.json", "w") as f:
+    with open("results/cluster_alignment.json", "w") as f:
         json.dump(out, f, indent=2)
-    print("  wrote cluster_alignment.json")
+    print("  wrote results/cluster_alignment.json")
 
 
 if __name__ == "__main__":

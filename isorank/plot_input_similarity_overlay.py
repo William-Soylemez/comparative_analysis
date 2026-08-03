@@ -22,6 +22,7 @@ Expects net/ncrassa-calbicans.tsv, net/ncrassa_bs-calbicans_bs.tsv,
         /tmp/netalign_repo_check/data/intact/rat-bakers.tsv
 """
 
+import os
 import json
 import numpy as np
 import pandas as pd
@@ -72,9 +73,10 @@ axes[0].legend(frameon=False, fontsize=8, loc="upper right")
 fig.suptitle("Sequence-similarity score distributions (pre-IsoRank input): paper's rat-bakers pairs vs. our ncrassa<->calbicans",
              fontsize=11)
 fig.tight_layout()
-fig.savefig("input_similarity_overlay.png", dpi=150, bbox_inches="tight")
-print("wrote input_similarity_overlay.png")
+os.makedirs("results", exist_ok=True)
+fig.savefig("results/input_similarity_overlay.png", dpi=150, bbox_inches="tight")
+print("wrote results/input_similarity_overlay.png")
 
-with open("input_similarity_overlay.json", "w") as f:
+with open("results/input_similarity_overlay.json", "w") as f:
     json.dump(out, f, indent=2)
-print("wrote input_similarity_overlay.json")
+print("wrote results/input_similarity_overlay.json")

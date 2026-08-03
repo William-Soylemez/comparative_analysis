@@ -18,10 +18,14 @@ Outputs:
     <species_a>_<species_b>_alignment_scores.json (summary stats)
 """
 
+import os
 import sys
 import json
 import numpy as np
 import pandas as pd
+
+RESULTS = "results"
+os.makedirs(RESULTS, exist_ok=True)
 
 from netalign.approx_isorank.io_utils import compute_adjacency, compute_pairs
 from netalign.approx_isorank.isorank_compute import compute_isorank
@@ -68,7 +72,7 @@ results = pd.DataFrame(
     [(rnA1[r], rnA2[c], s) for r, c, s in aligned],
     columns=[a, b, "score"],
 )
-outfile = f"{a}_{b}_alignment_scored.tsv"
+outfile = os.path.join(RESULTS, f"{a}_{b}_alignment_scored.tsv")
 results.to_csv(outfile, sep="\t", index=False)
 smaller_n = min(len(nA1), len(nA2))
 print(f"  wrote {outfile} ({len(results)} pairs, "
@@ -90,7 +94,7 @@ summary = {
     "score_p10": float(np.percentile(scores, 10)),
     "score_p20": float(np.percentile(scores, 20)),
 }
-jsonfile = f"{a}_{b}_alignment_scores.json"
+jsonfile = os.path.join(RESULTS, f"{a}_{b}_alignment_scores.json")
 with open(jsonfile, "w") as f:
     json.dump(summary, f, indent=2)
 print(f"  wrote {jsonfile}")

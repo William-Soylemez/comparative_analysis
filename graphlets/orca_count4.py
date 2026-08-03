@@ -31,7 +31,8 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ORCA = os.path.join(HERE, "orca_build", "orca")
-ROOT = os.path.dirname(HERE)
+ROOT = os.path.join(os.path.dirname(HERE), "input")
+RESULTS = os.path.join(HERE, "results")
 
 
 def human(s):
@@ -137,7 +138,8 @@ def parse():
                         "edges": e["edges"], "graphlets": g})
         print(f"[{e['accession']}] total connected 4-graphlets = "
               f"{g['total_connected_4graphlets']:,}", flush=True)
-    out_json = os.path.join(HERE, "graphlet4_counts.json")
+    os.makedirs(RESULTS, exist_ok=True)
+    out_json = os.path.join(RESULTS, "graphlet4_counts.json")
     with open(out_json, "w") as f:
         json.dump(results, f, indent=2)
     print(f"\nWrote {out_json} ({len(results)} species)")

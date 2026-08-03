@@ -66,8 +66,8 @@ def load_go(path):
 print("Loading go-basic.obo ...")
 onto = Ontology(OBO)
 
-go_n_raw, all_n = load_go("../GCF_000182925.2/GCF_000182925.2_GO_map.csv")
-go_c_raw, all_c = load_go("../GCF_000182965.3/GCF_000182965.3_GO_map.csv")
+go_n_raw, all_n = load_go("../input/GCF_000182925.2/GCF_000182925.2_GO_map.csv")
+go_c_raw, all_c = load_go("../input/GCF_000182965.3/GCF_000182965.3_GO_map.csv")
 
 leaves_n = leaf_terms(all_n, onto)
 leaves_c = leaf_terms(all_c, onto)
@@ -101,7 +101,7 @@ def random_baseline(pairs, p2go_a, p2go_b, n_shuffles=20):
 
 # --- IsoRank pairs ---
 isorank_pairs = []
-with open("ncrassa_calbicans_alignment.tsv") as f:
+with open("results/ncrassa_calbicans_alignment.tsv") as f:
     r = csv.reader(f, delimiter="\t")
     next(r)
     for row in r:

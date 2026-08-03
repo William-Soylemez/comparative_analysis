@@ -20,7 +20,7 @@
 # a quick srun/interactive step (also called from 00_run_all.sbatch).
 #
 # Usage: bash 04_prepare_networks_and_pairs.sh
-# Expects species.tsv, ../../<species_dir>/<acc>_network.positive.tsv,
+# Expects species.tsv, ../../input/<species_dir>/<acc>_network.positive.tsv,
 #         ../blast_out/<a>_vs_<b>.tsv (from 03_run_all_pairs_blast.sbatch)
 # Writes ../net/<short>.tsv, ../net/<short>_lcc.tsv, ../net/<short>_lcc_bs.tsv,
 #        ../net/<a>_lcc_bs-<b>_lcc_bs.tsv
@@ -28,7 +28,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 mkdir -p ../net
-BASE_DIR=../..  # comparative_analysis/, containing <species_dir>/<acc>_network.positive.tsv
+BASE_DIR=../../input  # comparative_analysis/input/, containing <species_dir>/<acc>_network.positive.tsv
 
 echo "== extracting 2-column edge lists =="
 tail -n +2 species.txt | while IFS=$'\t' read -r short acc organism species_dir; do

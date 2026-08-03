@@ -28,7 +28,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(HERE, "orca_build")
 CALIB = os.path.join(BUILD, "calib")
 WORK = os.path.join(BUILD, "work")
-TABLE = os.path.join(HERE, "orbit5_reduction.json")
+RESULTS = os.path.join(HERE, "results")
+TABLE = os.path.join(RESULTS, "orbit5_reduction.json")
 ALL_PAIRS = list(combinations(range(5), 2))
 
 
@@ -123,6 +124,7 @@ def build_table():
                                "orbits": {str(o): mm for o, mm in orbits.items()},
                                "edges": m["edges"], "degseq": m["degseq"],
                                "name": m["name"]}
+    os.makedirs(RESULTS, exist_ok=True)
     json.dump(reduction, open(TABLE, "w"), indent=2)
     print(f"built reduction table for {len(reduction)} graphlets -> {TABLE}")
     print(f"orbits 15-72 covered: {len(orbit_owner)} (expect 58)")
@@ -163,7 +165,8 @@ def parse(accessions):
                         "all_orbits_consistent": allok,
                         "by_class": {gid: c[gid] for gid in sorted(c, key=int)}})
         print(f"[{acc}] total 5-graphlets = {total:,}  (orbit-consistency: {allok})")
-    out = os.path.join(HERE, "graphlet5_counts.json")
+    os.makedirs(RESULTS, exist_ok=True)
+    out = os.path.join(RESULTS, "graphlet5_counts.json")
     json.dump(results, open(out, "w"), indent=2)
     print(f"\nwrote {out}")
 

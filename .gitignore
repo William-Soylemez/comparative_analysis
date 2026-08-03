@@ -11,4 +11,6 @@ venv
 blastdb
 go_data
 proteomes
-graphlets
+results
+orca_build
+random_graphs

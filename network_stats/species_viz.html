@@ -3781,13 +3781,13 @@ function init() {
 }
 
 // Try to pick up fresh data if this page is being served (fetch fails on file://).
-fetch("all_species_data.json")
+fetch("results/all_species_data.json")
   .then(r => r.ok ? r.json() : Promise.reject())
   .then(d => { if (Array.isArray(d) && d.length) { DATA = flattenAll(d); init(); } })
   .catch(() => {
     const b = document.getElementById("banner");
     b.style.display = "block";
-    b.textContent = "Showing embedded data. To load all_species_data.json live, serve this folder (e.g. python3 -m http.server) and open via http://localhost:8000/species_viz.html";
+    b.textContent = "Showing embedded data. To load results/all_species_data.json live, serve this folder (e.g. python3 -m http.server) and open via http://localhost:8000/species_viz.html";
   });
 
 init();

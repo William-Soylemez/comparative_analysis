@@ -13,6 +13,7 @@ Usage:
 Expects <species_a>_<species_b>_alignment_scored.tsv (from run_full_alignment.py).
 """
 
+import os
 import sys
 import json
 import numpy as np
@@ -35,7 +36,8 @@ def metric_label(name):
 
 a, b = sys.argv[1], sys.argv[2]
 PCT = int(sys.argv[3]) if len(sys.argv) > 3 else 100
-prefix = f"{a}_{b}"
+os.makedirs("results", exist_ok=True)
+prefix = os.path.join("results", f"{a}_{b}")
 METRIC = metric_label(a)
 
 df = pd.read_csv(f"{prefix}_alignment_scored.tsv", sep="\t")

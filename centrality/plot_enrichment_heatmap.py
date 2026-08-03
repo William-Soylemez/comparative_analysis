@@ -19,7 +19,7 @@ Reads <acc>_enrichment_<tag>.tsv (from fisher_enrichment.py).
 import argparse
 import csv
 import glob
-import json
+import os
 import statistics
 
 import numpy as np
@@ -50,11 +50,11 @@ COLUMN_ORDER = [
 ]
 
 
-def load(tag, qmax):
+def load(tag, qmax, indir):
     """Return {acc: {name: (fold, q)}} for all species with a <tag> TSV."""
     data = {}
-    for tsv in glob.glob(f"*_enrichment_{tag}.tsv"):
-        acc = tsv.split("_enrichment")[0]
+    for tsv in glob.glob(os.path.join(indir, f"*_enrichment_{tag}.tsv")):
+        acc = os.path.basename(tsv).split("_enrichment")[0]
         d = {}
         with open(tsv) as f:
             for row in csv.DictReader(f, delimiter="\t"):
@@ -72,9 +72,11 @@ def main():
     ap.add_argument("--max-rows", type=int, default=28)
     ap.add_argument("--exclude", nargs="*", default=[],
                     help="accession(s) to drop from the columns, e.g. GCF_000146465.1")
+    ap.add_argument("--dir", default="results",
+                    help="dir to read enrichment TSVs from and write the heatmap to (default results/)")
     args = ap.parse_args()
 
-    data = load(args.tag, args.qmax)
+    data = load(args.tag, args.qmax, args.dir)
     cols = [(a, n, p) for (a, n, p) in COLUMN_ORDER
             if a in data and a not in args.exclude]
 
@@ -168,7 +170,8 @@ def main():
         f"cells shown where q≤{args.qmax} (Fisher, BH-FDR); blank = not significant",
         fontsize=11, color=INK, pad=26)
     fig.tight_layout()
-    out = f"enrichment_{args.tag}_heatmap.png"
+    os.makedirs(args.dir, exist_ok=True)
+    out = os.path.join(args.dir, f"enrichment_{args.tag}_heatmap.png")
     fig.savefig(out, dpi=160, bbox_inches="tight", facecolor=SURFACE)
     print(f"wrote {out}  ({n_sig_rows} categories x {len(cols)} species)")
 
