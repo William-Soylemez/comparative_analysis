@@ -20,6 +20,13 @@ Pipeline per species:
   diamond (K4 minus edge)   = sum(orbit13) / 2
   K4  (4-clique)            = sum(orbit14) / 4
 Also reported (3-node): P3 path = sum(orbit2), triangle = sum(orbit3)/3.
+
+Setup / usage:
+  1. build the ORCA binary once:   cd orca_build && make
+  2. write per-species ORCA inputs:  python3 orca_count4.py --prep
+  3. run ORCA on each input:  for f in orca_build/work/*.in; do
+         orca_build/orca node 4 "$f" "${f%.in}.orbits"; done
+  4. sum orbits -> results/graphlet4_counts.json:  python3 orca_count4.py --parse
 """
 
 import glob
