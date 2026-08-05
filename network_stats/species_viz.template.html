@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHILHARMONIC — species network stats</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --ink: #2a2a2a;
+    --muted: #8a8f98;
+    --border: #eceef1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display: flex; flex-wrap: wrap; gap: 14px 22px;
+    align-items: center;
+  }
+  h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+  label { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  select {
+    font: inherit; padding: 5px 8px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--card); color: var(--ink);
+  }
+  .legend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .bar { width: 130px; height: 10px; border-radius: 5px; border: 1px solid var(--border);
+    background: linear-gradient(90deg, hsl(220,72%,62%), #ffffff, hsl(2,72%,63%)); }
+  .count { margin-left: auto; font-size: 12px; color: var(--muted); }
+  main { padding: 22px 24px 72px; }
+  .grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  }
+  .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(20,25,35,.04);
+  }
+  .names { min-width: 0; }
+  .common { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sci { font-size: 12px; color: var(--muted); font-style: italic;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .acc { font-size: 11px; color: var(--muted); }
+  .pill {
+    flex: none; min-width: 80px; text-align: center;
+    padding: 7px 12px; border-radius: 999px;
+    font-variant-numeric: tabular-nums; font-weight: 650; color: #2a2a2a;
+    border: 1px solid rgba(20,25,35,.08);
+  }
+  .banner { padding: 8px 12px; margin: 0 20px 10px; border-radius: 8px;
+    background: #fff3cd; color: #664d03; font-size: 13px; display: none; }
+  label input { margin: 0; }
+  button {
+    font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  button:hover { background: #f4f5f7; }
+  .tree-only, .list-only, .scatter-only { display: inline-flex; align-items: center; gap: 12px 18px; flex-wrap: wrap; }
+  .sep { width: 1px; align-self: stretch; min-height: 20px; background: var(--border); }
+  #scatterwrap { padding-top: 6px; }
+  #scatter { max-width: 100%; height: auto; display: block; }
+  #scatter .axis { stroke: #c7ccd3; stroke-width: 1px; }
+  #scatter .grid { stroke: #eef0f2; stroke-width: 1px; }
+  #scatter .tick { fill: #8a8f98; font-size: 11px; }
+  #scatter .axistitle { fill: #4b5563; font-size: 13px; font-weight: 600; }
+  #scatter .pt { stroke: #ffffff; stroke-width: 1px; }
+  #scatter .fit { stroke: #333; stroke-width: 1.6px; stroke-dasharray: 6 4; fill: none; }
+  #scatter .stat { fill: #2a2a2a; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  #scatterlegend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  #scatterlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  #scatterlegend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  #treewrap { overflow-x: auto; }
+  #tree { display: block; }
+  #tree .branch { fill: none; stroke: #c7ccd3; stroke-width: 1.4px; }
+  #tree .tip { fill: #2a2a2a; font-size: 12.5px; }
+  #tree .val { fill: #8a8f98; font-size: 12px; font-variant-numeric: tabular-nums; }
+  #tree .clade { fill: #9aa0a6; font-size: 10.5px; font-weight: 600;
+    paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-linejoin: round;
+    text-transform: uppercase; letter-spacing: .03em; }
+  #tree .toggle { cursor: pointer; }
+  #tree .toggle:hover { fill: #4b5563; }
+  #tree .wedge { stroke: #cbd0d6; stroke-width: 1px; }
+  #tree circle { stroke: #cbd0d6; stroke-width: 1px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Species network stats</h1>
+  <div class="controls">
+    <label>View
+      <select id="view">
+        <option value="tree">tree</option>
+        <option value="list">list</option>
+        <option value="scatter">scatter</option>
+      </select>
+    </label>
+    <label class="tl-only">Metric
+      <select id="metric"></select>
+    </label>
+    <label class="tl-only"><input type="checkbox" id="pernode"> per node</label>
+    <span class="tree-only">
+      <label><input type="checkbox" id="clades" checked> clade labels</label>
+      <button id="collapseAll" type="button">collapse all</button>
+      <button id="expandAll" type="button">expand all</button>
+    </span>
+    <label class="list-only">Sort
+      <select id="sort">
+        <option value="value-desc">value ↓</option>
+        <option value="value-asc">value ↑</option>
+        <option value="name">name A–Z</option>
+      </select>
+    </label>
+    <span class="scatter-only">
+      <label>X <select id="xmetric"></select></label>
+      <label><input type="checkbox" id="xlog"> log</label>
+      <label><input type="checkbox" id="xnorm"> per node</label>
+      <span class="sep"></span>
+      <label>Y <select id="ymetric"></select></label>
+      <label><input type="checkbox" id="ylog"> log</label>
+      <label><input type="checkbox" id="ynorm"> per node</label>
+      <span class="sep"></span>
+      <label><input type="checkbox" id="fit"> best fit + R²</label>
+    </span>
+    <div class="legend tl-only"><span>low</span><span class="bar"></span><span>high</span></div>
+  </div>
+  <div class="count" id="count"></div>
+</header>
+<div class="banner" id="banner"></div>
+<main>
+  <div id="treewrap"><svg id="tree"></svg></div>
+  <div class="grid" id="grid" hidden></div>
+  <div id="scatterwrap" hidden>
+    <svg id="scatter"></svg>
+    <div id="scatterlegend"></div>
+  </div>
+</main>
+
+<script>
+// Accession -> [common name, scientific name]. Built from the species spreadsheet.
+// Common name is "" where none was assigned; the app falls back to scientific name.
+const NAMES = {
+  "GCA_001460835.1": ["", "Bodo saltans"],
+  "GCA_003704095.1": ["cauliflower coral", "Pocillopora damicornis"],
+  "GCA_008330645.1": ["", "Cafeteria roenbergensis"],
+  "GCA_014529385.2": ["maidenhair fern", "Adiantum capillus-veneris"],
+  "GCA_014872705.1": ["cultivated mushroom", "Agaricus bisporus"],
+  "GCA_025594325.1": ["", "Blastocladiella emersonii"],
+  "GCA_026419775.2": ["", "Acrasis kona"],
+  "GCA_036867785.1": ["", "Plasmodiophora brassicae"],
+  "GCA_041296205.1": ["", "Prymnesium parvum"],
+  "GCA_048537945.1": ["sea walnut", "Mnemiopsis leidyi"],
+  "GCA_050947105.1": ["old world hookworm", "Ancylostoma duodenale"],
+  "GCF_000001635.27": ["mouse", "Mus musculus"],
+  "GCF_000001735.4": ["thale cress", "Arabidopsis thaliana"],
+  "GCF_000002425.5": ["spreading earthmoss", "Physcomitrium patens"],
+  "GCF_000002435.2": ["", "Giardia duodenalis"],
+  "GCF_000002725.2": ["", "Leishmania major"],
+  "GCF_000002985.6": ["", "Caenorhabditis elegans"],
+  "GCF_000003815.2": ["Florida lancelet", "Branchiostoma floridae"],
+  "GCF_000006565.2": ["", "Toxoplasma gondii"],
+  "GCF_000090795.2": ["", "Amphimedon queenslandica"],
+  "GCF_000090985.2": ["", "Micromonas commoda"],
+  "GCF_000091205.1": ["", "Cyanidioschyzon merolae"],
+  "GCF_000142905.1": ["", "Thecamonas trahens"],
+  "GCF_000146465.1": ["", "Encephalitozoon intestinalis"],
+  "GCF_000147115.1": ["little brown bat", "Myotis lucifugus"],
+  "GCF_000149405.2": ["", "Thalassiosira pseudonana"],
+  "GCF_000151315.2": ["", "Capsaspora owczarzaki"],
+  "GCF_000151545.1": ["", "Saprolegnia parasitica"],
+  "GCF_000151665.1": ["", "Blastocystis hominis"],
+  "GCF_000165425.1": ["", "Paramecium tetraurelia"],
+  "GCF_000182925.2": ["", "Neurospora crassa"],
+  "GCF_000182965.3": ["", "Candida albicans"],
+  "GCF_000188695.1": ["", "Salpingoeca rosetta"],
+  "GCF_000189635.1": ["", "Tetrahymena thermophila"],
+  "GCF_000203795.2": ["", "Batrachochytrium dendrobatidis"],
+  "GCF_000208925.1": ["", "Entamoeba histolytica"],
+  "GCF_000237925.1": ["blood fluke", "Schistosoma mansoni"],
+  "GCF_000313135.1": ["", "Acanthamoeba castellanii"],
+  "GCF_000315625.1": ["", "Guillardia theta"],
+  "GCF_000326865.2": ["leech", "Helobdella robusta"],
+  "GCF_000350225.1": ["carrageenan moss", "Chondrus crispus"],
+  "GCF_000372725.1": ["", "Emiliania huxleyi"],
+  "GCF_000388065.1": ["", "Fonticula alba"],
+  "GCF_000485595.1": ["cactus worm", "Priapulus caudatus"],
+  "GCF_001039355.2": ["", "Lingula anatina"],
+  "GCF_001186125.1": ["", "Sphaeroforma arctica"],
+  "GCF_001194135.2": ["California two-spot octopus", "Octopus bimaculoides"],
+  "GCF_001643675.1": ["", "Monocercomonoides exilis"],
+  "GCF_003339765.1": ["macaque", "Macaca mulatta"],
+  "GCF_004359215.1": ["lettuce downy mildew", "Bremia lactucae"],
+  "GCF_008403515.1": ["", "Naegleria fowleri"],
+  "GCF_011100685.1": ["dog", "Canis lupus familiaris"],
+  "GCF_016920785.2": ["black-legged tick", "Ixodes scapularis"],
+  "GCF_017639515.1": ["great white shark", "Carcharodon carcharias"],
+  "GCF_018327825.1": ["vase tunicate", "Ciona intestinalis"],
+  "GCF_018991925.1": ["American lobster", "Homarus americanus"],
+  "GCF_019649055.1": ["", "Paramacrobiotus metropolitanus"],
+  "GCF_020740605.2": ["ring-tailed lemur", "Lemur catta"],
+  "GCF_025024165.1": ["", "Kickxella alabastrina"],
+  "GCF_025094135.1": ["common pinmould", "Mucor mucedo"],
+  "GCF_026210795.1": ["", "Rhizophagus irregularis"],
+  "GCF_027887165.1": ["gray short-tailed opossum", "Monodelphis domestica"],
+  "GCF_030014295.1": ["African savanna elephant", "Loxodonta africana"],
+  "GCF_031307605.1": ["red flour beetle", "Tribolium castaneum"],
+  "GCF_034140825.1": ["rice", "Oryza sativa"],
+  "GCF_035594765.1": ["Carolina anole", "Anolis carolinensis"],
+  "GCF_037975245.1": ["Japanese sea cucumber", "Apostichopus japonicus"],
+  "GCF_038396675.1": ["", "Hydra vulgaris"],
+  "GCF_041296265.1": ["horse", "Equus caballus"],
+  "GCF_048771995.1": ["zebra finch", "Taeniopygia guttata"],
+  "GCF_048934315.1": ["sea lamprey", "Petromyzon marinus"],
+  "GCF_901000725.3": ["pufferfish", "Takifugu rubripes"],
+  "GCF_910592395.1": ["bootlace worm", "Lineus longissimus"],
+  "GCF_932526225.1": ["starlet sea anemone", "Nematostella vectensis"],
+  "GCF_947242115.1": ["", "Biomphalaria glabrata"],
+  "GCF_963576615.1": ["", "Watersipora subatra"],
+  "GCF_963678635.1": ["mint-sauce worm", "Symsagittifera roscoffensis"],
+  "GCF_963853765.1": ["Pacific oyster", "Magallana gigas"],
+  "GCF_964187855.1": ["Atlantic hagfish", "Myxine glutinosa"]
+};
+
+// Accession -> taxonomy path (broad -> narrow), built from the spreadsheet's
+// supergroup + phylum columns and nested under standard higher clades
+// (Opisthokonta, SAR, Archaeplastida, Discoba, ...). This is a taxonomy-derived
+// cladogram: topology only, no branch lengths.
+const TAXO = {
+  "GCF_000002985.6": ["Opisthokonta","Metazoa","Nematoda"],
+  "GCF_963853765.1": ["Opisthokonta","Metazoa","Mollusca"],
+  "GCF_932526225.1": ["Opisthokonta","Metazoa","Cnidaria"],
+  "GCF_000090795.2": ["Opisthokonta","Metazoa","Porifera"],
+  "GCF_000001735.4": ["Archaeplastida","Viridiplantae","Angiosperms","Eudicots"],
+  "GCF_034140825.1": ["Archaeplastida","Viridiplantae","Angiosperms","Monocots"],
+  "GCF_000165425.1": ["SAR","Alveolata","Ciliophora"],
+  "GCF_000372725.1": ["Haptista","Haptophyta"],
+  "GCF_000315625.1": ["Cryptista","Cryptophyceae"],
+  "GCF_000188695.1": ["Opisthokonta","Holozoa","Choanoflagellata"],
+  "GCF_000151315.2": ["Opisthokonta","Holozoa","Filasterea"],
+  "GCF_001186125.1": ["Opisthokonta","Holozoa","Ichthyosporea"],
+  "GCF_000203795.2": ["Opisthokonta","Fungi","Chytridiomycota"],
+  "GCF_000146465.1": ["Opisthokonta","Fungi","Microsporidia"],
+  "GCF_026210795.1": ["Opisthokonta","Fungi","Glomeromycota"],
+  "GCF_025024165.1": ["Opisthokonta","Fungi","Kickxellomycota"],
+  "GCA_014872705.1": ["Opisthokonta","Fungi","Dikarya","Basidiomycota"],
+  "GCF_000388065.1": ["Opisthokonta","Rotosphaerida"],
+  "GCF_000142905.1": ["Apusomonadida"],
+  "GCF_000313135.1": ["Amoebozoa","Acanthamoebidae"],
+  "GCF_000208925.1": ["Amoebozoa","Entamoebidae"],
+  "GCF_000002425.5": ["Archaeplastida","Viridiplantae","Bryopsida"],
+  "GCA_014529385.2": ["Archaeplastida","Viridiplantae","Polypodiopsida"],
+  "GCF_000090985.2": ["Archaeplastida","Viridiplantae","Chlorophyta"],
+  "GCF_000091205.1": ["Archaeplastida","Rhodophyta"],
+  "GCF_000350225.1": ["Archaeplastida","Rhodophyta"],
+  "GCF_000149405.2": ["SAR","Stramenopiles","Bacillariophyta"],
+  "GCF_004359215.1": ["SAR","Stramenopiles","Oomycetes"],
+  "GCF_000151545.1": ["SAR","Stramenopiles","Oomycetes"],
+  "GCA_008330645.1": ["SAR","Stramenopiles","Bigyra"],
+  "GCF_000151665.1": ["SAR","Stramenopiles","Bigyra"],
+  "GCF_000006565.2": ["SAR","Alveolata","Apicomplexa"],
+  "GCF_000189635.1": ["SAR","Alveolata","Ciliophora"],
+  "GCA_036867785.1": ["SAR","Rhizaria","Endomyxa"],
+  "GCA_041296205.1": ["Haptista","Haptophyta"],
+  "GCF_008403515.1": ["Discoba","Heterolobosea"],
+  "GCA_026419775.2": ["Discoba","Heterolobosea"],
+  "GCF_000002725.2": ["Discoba","Euglenozoa","Kinetoplastida"],
+  "GCA_001460835.1": ["Discoba","Euglenozoa","Kinetoplastida"],
+  "GCF_001643675.1": ["Metamonada","Preaxostyla"],
+  "GCF_000002435.2": ["Metamonada","Diplomonadida"],
+  "GCF_003339765.1": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_000001635.27": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_000147115.1": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_041296265.1": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_011100685.1": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_030014295.1": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_027887165.1": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_048771995.1": ["Opisthokonta","Metazoa","Chordata","Aves"],
+  "GCF_035594765.1": ["Opisthokonta","Metazoa","Chordata","Reptilia"],
+  "GCF_901000725.3": ["Opisthokonta","Metazoa","Chordata","Actinopterygii"],
+  "GCF_017639515.1": ["Opisthokonta","Metazoa","Chordata","Chondrichthyes"],
+  "GCF_048934315.1": ["Opisthokonta","Metazoa","Chordata","Cyclostomi"],
+  "GCF_018327825.1": ["Opisthokonta","Metazoa","Chordata","Tunicata"],
+  "GCF_000003815.2": ["Opisthokonta","Metazoa","Chordata","Cephalochordata"],
+  "GCF_000326865.2": ["Opisthokonta","Metazoa","Annelida"],
+  "GCF_016920785.2": ["Opisthokonta","Metazoa","Arthropoda"],
+  "GCF_018991925.1": ["Opisthokonta","Metazoa","Arthropoda"],
+  "GCF_001039355.2": ["Opisthokonta","Metazoa","Brachiopoda"],
+  "GCF_963576615.1": ["Opisthokonta","Metazoa","Bryozoa"],
+  "GCF_001194135.2": ["Opisthokonta","Metazoa","Mollusca"],
+  "GCF_910592395.1": ["Opisthokonta","Metazoa","Nemertea"],
+  "GCF_000237925.1": ["Opisthokonta","Metazoa","Platyhelminthes"],
+  "GCF_000485595.1": ["Opisthokonta","Metazoa","Priapulida"],
+  "GCF_019649055.1": ["Opisthokonta","Metazoa","Tardigrada"],
+  "GCF_963678635.1": ["Opisthokonta","Metazoa","Xenacoelomorpha"],
+  "GCF_038396675.1": ["Opisthokonta","Metazoa","Cnidaria"],
+  "GCA_003704095.1": ["Opisthokonta","Metazoa","Cnidaria"],
+  "GCA_048537945.1": ["Opisthokonta","Metazoa","Ctenophora"],
+  "GCF_020740605.2": ["Opisthokonta","Metazoa","Chordata","Mammalia"],
+  "GCF_964187855.1": ["Opisthokonta","Metazoa","Chordata","Cyclostomi"],
+  "GCF_037975245.1": ["Opisthokonta","Metazoa","Echinodermata"],
+  "GCA_050947105.1": ["Opisthokonta","Metazoa","Nematoda"],
+  "GCF_031307605.1": ["Opisthokonta","Metazoa","Arthropoda"],
+  "GCF_947242115.1": ["Opisthokonta","Metazoa","Mollusca"],
+  "GCF_000182965.3": ["Opisthokonta","Fungi","Dikarya","Ascomycota"],
+  "GCF_000182925.2": ["Opisthokonta","Fungi","Dikarya","Ascomycota"],
+  "GCA_025594325.1": ["Opisthokonta","Fungi","Blastocladiomycetes"],
+  "GCF_025094135.1": ["Opisthokonta","Fungi","Mucoromycota"]
+};
+
+// Preferred sibling order at any level (phylogenetically sensible-ish);
+// anything not listed falls back to alphabetical after these.
+const ORDER = [
+  "Opisthokonta","Amoebozoa","Apusomonadida","Archaeplastida","Haptista",
+  "Cryptista","SAR","Discoba","Metamonada",
+  "Metazoa","Holozoa","Fungi","Rotosphaerida",
+  "Chordata","Echinodermata","Hemichordata","Xenacoelomorpha","Arthropoda",
+  "Nematoda","Tardigrada","Priapulida","Annelida","Mollusca","Nemertea",
+  "Brachiopoda","Bryozoa","Platyhelminthes","Cnidaria","Ctenophora","Porifera",
+  "Mammalia","Aves","Reptilia","Amphibia","Actinopterygii","Chondrichthyes",
+  "Cyclostomi","Tunicata","Cephalochordata",
+  "Dikarya","Ascomycota","Basidiomycota","Mucoromycota","Glomeromycota",
+  "Kickxellomycota","Blastocladiomycetes","Chytridiomycota","Microsporidia",
+  "Choanoflagellata","Filasterea","Ichthyosporea",
+  "Angiosperms","Eudicots","Monocots","Bryopsida","Polypodiopsida","Chlorophyta",
+  "Rhodophyta","Stramenopiles","Alveolata","Rhizaria",
+  "Apicomplexa","Ciliophora","Dinoflagellata","Bacillariophyta","Oomycetes","Bigyra",
+  "Euglenozoa","Heterolobosea","Kinetoplastida"
+];
+const ORDER_IDX = Object.fromEntries(ORDER.map((n, i) => [n, i]));
+
+// Human-friendly labels for the metric keys.
+const METRIC_LABELS = {
+  node_count: "Node count",
+  edge_count: "Edge count",
+  density: "Density",
+  num_connected_components: "Connected components",
+  nodes_outside_largest_cc: "Nodes outside largest CC",
+  median_degree: "Median degree",
+  num_philharmonic_clusters: "PHILHARMONIC clusters",
+  global_clustering_coefficient: "Global clustering coeff.",
+  largest_cc_size: "Largest CC size",
+  num_bridges: "Bridges",
+  diameter: "Diameter",
+  modularity: "Modularity",
+  cluster_edge_count: "Cluster graph: edges",
+  cluster_num_connected_components: "Cluster graph: connected components",
+  cluster_largest_cc_size: "Cluster graph: largest CC size",
+  cluster_global_clustering_coefficient: "Cluster graph: clustering coeff.",
+  cluster_num_bridges: "Cluster graph: bridges",
+  cluster_diameter: "Cluster graph: diameter",
+  cluster_modularity: "Cluster graph: modularity"
+};
+
+// Current data embedded so this works on double-click. On load we also try to
+// fetch all_species_data.json (works when served) and use it if present.
+const EMBEDDED = __EMBEDDED_DATA__;
+
+// Pull cluster_graph.* sub-metrics up to flat, prefixed top-level fields so
+// val()/metricRange() (which do plain d[metric] lookups) work unchanged.
+// cluster_graph.node_count is dropped: it's identical to num_philharmonic_clusters.
+function flattenCluster(d) {
+  const cg = d.cluster_graph;
+  if (!cg) return d;
+  const { cluster_graph, ...rest } = d;
+  return {
+    ...rest,
+    cluster_edge_count: cg.edge_count,
+    cluster_num_connected_components: cg.num_connected_components,
+    cluster_largest_cc_size: cg.largest_cc_size,
+    cluster_global_clustering_coefficient: cg.global_clustering_coefficient,
+    cluster_num_bridges: cg.num_bridges,
+    cluster_diameter: cg.diameter_largest_cc,
+    cluster_modularity: cg.modularity
+  };
+}
+function flattenAll(arr) { return arr.map(flattenCluster); }
+
+let DATA = flattenAll(EMBEDDED);
+
+function label(d) {
+  const nm = NAMES[d.species];
+  const common = nm && nm[0] ? nm[0] : "";
+  const sci = nm ? nm[1] : "";
+  return { common: common || sci || d.species, sci: common ? sci : "", acc: d.species };
+}
+
+function fmt(v) {
+  if (v === null || v === undefined) return "—";
+  if (Number.isInteger(v)) return v.toLocaleString();
+  if (Math.abs(v) < 1) return v.toPrecision(3);
+  return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+// blue (low) -> white (mid) -> red (high), kept light so dark text stays legible
+function color(t) {
+  const hue = t < 0.5 ? 220 : 2;              // blue below the midpoint, red above
+  const lightness = 62 + (1 - Math.abs(2 * t - 1)) * 36;  // 62% at the extremes, ~98% at the middle
+  return `hsl(${hue}, 72%, ${lightness}%)`;
+}
+
+const metricSel = document.getElementById("metric");
+const viewSel = document.getElementById("view");
+const sortSel = document.getElementById("sort");
+const cladeChk = document.getElementById("clades");
+const pernodeChk = document.getElementById("pernode");
+const svg = document.getElementById("tree");
+const treewrap = document.getElementById("treewrap");
+const grid = document.getElementById("grid");
+const countEl = document.getElementById("count");
+// scatter refs
+const xSel = document.getElementById("xmetric"), ySel = document.getElementById("ymetric");
+const xLog = document.getElementById("xlog"), yLog = document.getElementById("ylog");
+const xNorm = document.getElementById("xnorm"), yNorm = document.getElementById("ynorm");
+const fitChk = document.getElementById("fit");
+const scatterwrap = document.getElementById("scatterwrap");
+const scatterSvg = document.getElementById("scatter");
+const scatterLegend = document.getElementById("scatterlegend");
+
+// Categorical colors for the top-level (mega)clades, used in the scatter.
+const MEGACOLORS = {
+  Opisthokonta: "#e15759", Amoebozoa: "#b07aa1", Apusomonadida: "#9c755f",
+  Archaeplastida: "#59a14f", Haptista: "#edc948", Cryptista: "#ff9da7",
+  SAR: "#4e79a7", Discoba: "#f28e2b", Metamonada: "#76b7b2"
+};
+function megaOf(d) { return (TAXO[d.species] || ["?"])[0]; }
+function megaColor(m) { return MEGACOLORS[m] || "#8a8f98"; }
+
+// tree geometry (roomier: wider clade columns, taller rows)
+const MARGIN_L = 18, MARGIN_TOP = 26, COL = 66, ROW = 32;
+const LABEL_GAP = 14, VALUE_W = 300, COLLAPSED_H = ROW * 1.6;
+
+// Collapsed clade nodes, keyed by their taxonomy path (">"-joined).
+const collapsed = new Set();
+
+function esc(s) {
+  return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+// Metrics where dividing by node count adds nothing: already scale-free
+// (density, clustering coeff.), degenerate (node_count -> 1), already
+// per-node (median_degree), not meaningfully divided by protein count
+// (diameter, modularity), or scaled to the cluster graph rather than the
+// protein graph (all cluster_* metrics).
+const NON_NORMALIZABLE = new Set([
+  "node_count", "density", "global_clustering_coefficient", "median_degree",
+  "diameter", "modularity",
+  "cluster_edge_count", "cluster_num_connected_components",
+  "cluster_largest_cc_size", "cluster_global_clustering_coefficient",
+  "cluster_num_bridges", "cluster_diameter", "cluster_modularity"
+]);
+function isNormalizable(metric) { return !NON_NORMALIZABLE.has(metric); }
+
+// Value for a species+metric, optionally divided by node count (proteome size).
+function val(d, metric) {
+  const raw = d[metric];
+  if (typeof raw !== "number") return raw;
+  return (pernodeChk.checked && isNormalizable(metric)) ? raw / d.node_count : raw;
+}
+
+function metricRange(metric) {
+  const vals = DATA.map(d => val(d, metric)).filter(v => typeof v === "number");
+  const min = Math.min(...vals), max = Math.max(...vals);
+  return { min, max, span: (max - min) || 1 };
+}
+
+function metricKeys() {
+  return Object.keys(DATA[0]).filter(k => k !== "species");
+}
+
+function fillMetricSelect(sel) {
+  sel.innerHTML = "";
+  for (const k of metricKeys()) {
+    const o = document.createElement("option");
+    o.value = k;
+    o.textContent = METRIC_LABELS[k] || k;
+    sel.appendChild(o);
+  }
+}
+
+function buildMetricOptions() {
+  fillMetricSelect(metricSel);
+  fillMetricSelect(xSel);
+  fillMetricSelect(ySel);
+  xSel.value = "node_count";
+  ySel.value = "edge_count";
+}
+
+function siblingSort(a, b) {
+  const ai = ORDER_IDX[a] ?? Infinity, bi = ORDER_IDX[b] ?? Infinity;
+  return ai !== bi ? ai - bi : a.localeCompare(b);
+}
+
+// Build a nested tree from the taxonomy paths; species hang as leaves.
+// Each node carries a stable `key` (its path) used for collapse state.
+function buildTree() {
+  const root = { name: "", key: "", depth: 0, kids: new Map(), leaves: [] };
+  let maxPath = 0;
+  for (const d of DATA) {
+    const path = TAXO[d.species] || ["(unclassified)"];
+    maxPath = Math.max(maxPath, path.length);
+    let node = root;
+    path.forEach((clade, i) => {
+      if (!node.kids.has(clade)) {
+        node.kids.set(clade, {
+          name: clade, key: node.key ? node.key + ">" + clade : clade,
+          depth: i + 1, kids: new Map(), leaves: []
+        });
+      }
+      node = node.kids.get(clade);
+    });
+    node.leaves.push(d);
+  }
+  return { root, maxPath };
+}
+
+function hasContent(node) { return node.kids.size + node.leaves.length > 0; }
+function isCollapsed(node) { return collapsed.has(node.key) && hasContent(node); }
+
+function collectLeaves(node) {
+  let res = [...node.leaves];
+  for (const c of node.kids.values()) res = res.concat(collectLeaves(c));
+  return res;
+}
+
+let yCursor;
+// Assign x/y to every node. Leaves align at the same x (cladogram tips).
+// Collapsed nodes become a single wedge occupying COLLAPSED_H.
+function layout(node, leafX, isRoot, out) {
+  if (!isRoot && isCollapsed(node)) {
+    const top = yCursor;
+    yCursor += COLLAPSED_H;
+    node.y = top + COLLAPSED_H / 2;
+    node.wedge = { top, bottom: yCursor, leaves: collectLeaves(node), leafX };
+    out.nodes.push(node);
+    return;
+  }
+  const childY = [];
+  const kidNames = [...node.kids.keys()].sort(siblingSort);
+  for (const name of kidNames) {
+    const c = node.kids.get(name);
+    c.x = MARGIN_L + c.depth * COL;
+    layout(c, leafX, false, out);
+    childY.push(c.y);
+  }
+  for (const d of node.leaves) {
+    const y = yCursor + ROW / 2;
+    yCursor += ROW;
+    out.tips.push({ d, x: leafX, y });
+    childY.push(y);
+  }
+  node.y = childY.length ? (childY[0] + childY[childY.length - 1]) / 2 : yCursor;
+  if (!isRoot) out.nodes.push(node);
+}
+
+function renderTree() {
+  const metric = metricSel.value;
+  const { min, span } = metricRange(metric);
+  const showClades = cladeChk.checked;
+
+  const { root, maxPath } = buildTree();
+  const leafX = MARGIN_L + (maxPath + 1) * COL;
+  const out = { nodes: [], tips: [] };
+  yCursor = MARGIN_TOP;
+  root.x = MARGIN_L;
+  layout(root, leafX, true, out);
+
+  const height = yCursor + MARGIN_TOP;
+  const width = leafX + LABEL_GAP + VALUE_W;
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const parts = [];
+  const colorOf = v => (typeof v === "number") ? color((v - min) / span) : "#cccccc";
+
+  const drawWedge = (node) => {
+    const w = node.wedge;
+    const vals = w.leaves.map(d => val(d, metric)).filter(v => typeof v === "number");
+    const mean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    parts.push(`<path class="wedge toggle" data-key="${esc(node.key)}" fill="${colorOf(mean)}" `
+      + `d="M${node.x},${node.y} L${w.leafX},${w.top + 4} L${w.leafX},${w.bottom - 4} Z"><title>expand ${esc(node.name)}</title></path>`);
+    parts.push(`<text class="tip toggle" data-key="${esc(node.key)}" x="${w.leafX + LABEL_GAP}" y="${node.y + 4}">`
+      + `${esc(node.name)} <tspan fill="#aab0b8">(${w.leaves.length})</tspan></text>`);
+    parts.push(`<text class="val" x="${width - 6}" y="${node.y + 4}" text-anchor="end">${fmt(mean)}</text>`);
+  };
+
+  // branches: for every node, a vertical spine + a horizontal to each child
+  const walk = (node, isRoot) => {
+    const kidNames = [...node.kids.keys()].sort(siblingSort);
+    const ys = [];
+    for (const name of kidNames) {
+      const c = node.kids.get(name);
+      ys.push(c.y);
+      parts.push(`<path class="branch" d="M${node.x},${c.y} H${c.x}"/>`);
+      if (isCollapsed(c)) drawWedge(c); else walk(c, false);
+    }
+    for (const d of node.leaves) {
+      const tip = out.tips.find(t => t.d === d);
+      ys.push(tip.y);
+      parts.push(`<path class="branch" d="M${node.x},${tip.y} H${tip.x}"/>`);
+    }
+    if (ys.length > 1) parts.push(`<path class="branch" d="M${node.x},${Math.min(...ys)} V${Math.max(...ys)}"/>`);
+    if (!isRoot && !isCollapsed(node) && showClades && hasContent(node)) {
+      parts.push(`<text class="clade toggle" data-key="${esc(node.key)}" x="${node.x + 4}" y="${node.y - 4}">`
+        + `${esc(node.name)}<title>collapse ${esc(node.name)}</title></text>`);
+    }
+  };
+  walk(root, true);
+
+  // tips: colored circle + common name + value
+  for (const tip of out.tips) {
+    const nm = label(tip.d);
+    const v = val(tip.d, metric);
+    parts.push(`<circle cx="${tip.x}" cy="${tip.y}" r="5" fill="${colorOf(v)}"/>`);
+    parts.push(`<text class="tip" x="${tip.x + LABEL_GAP}" y="${tip.y + 4}">${esc(nm.common)}`
+      + (nm.sci ? ` <tspan font-style="italic" fill="#aab0b8">${esc(nm.sci)}</tspan>` : "") + `</text>`);
+    parts.push(`<text class="val" x="${width - 6}" y="${tip.y + 4}" text-anchor="end">${fmt(v)}</text>`);
+  }
+
+  svg.innerHTML = parts.join("");
+  countEl.textContent = `${DATA.length} species · ${METRIC_LABELS[metric] || metric}`;
+}
+
+function renderList() {
+  const metric = metricSel.value;
+  const { min, max, span } = metricRange(metric);
+  const rows = DATA.map(d => ({ v: val(d, metric), nm: label(d) }));
+  const sort = sortSel.value;
+  rows.sort((a, b) => {
+    if (sort === "name") return a.nm.common.toLowerCase().localeCompare(b.nm.common.toLowerCase());
+    const av = (typeof a.v === "number") ? a.v : -Infinity;
+    const bv = (typeof b.v === "number") ? b.v : -Infinity;
+    return sort === "value-asc" ? av - bv : bv - av;
+  });
+
+  grid.innerHTML = "";
+  for (const { v, nm } of rows) {
+    const t = (typeof v === "number") ? (v - min) / span : 0;
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      `<div class="names">
+         <div class="common">${esc(nm.common)}</div>
+         ${nm.sci ? `<div class="sci">${esc(nm.sci)}</div>` : `<div class="acc">${esc(nm.acc)}</div>`}
+       </div>
+       <div class="pill" style="background:${typeof v === "number" ? color(t) : "#ccc"}">${fmt(v)}</div>`;
+    grid.appendChild(row);
+  }
+  countEl.textContent = `${DATA.length} species · ${METRIC_LABELS[metric] || metric}: ${fmt(min)} – ${fmt(max)}`;
+}
+
+// ---------- scatter ----------
+const SC = { w: 780, h: 540, ml: 74, mr: 22, mt: 20, mb: 58 };
+
+// Axis value: like val(), but with a per-axis normalize flag.
+function axVal(d, metric, norm) {
+  const raw = d[metric];
+  if (typeof raw !== "number") return NaN;
+  return (norm && isNormalizable(metric)) ? raw / d.node_count : raw;
+}
+
+function niceNum(range, round) {
+  const exp = Math.floor(Math.log10(range));
+  const f = range / Math.pow(10, exp);
+  const nf = round ? (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10)
+                   : (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10);
+  return nf * Math.pow(10, exp);
+}
+function niceTicks(min, max, n = 6) {
+  if (!(max > min)) return [min];
+  const step = niceNum(niceNum(max - min, false) / (n - 1), true);
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const t = [];
+  for (let v = lo; v <= hi + step * 0.5; v += step) t.push(+v.toFixed(10));
+  return t;
+}
+function fmtTick(v) {
+  if (v === 0) return "0";
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-2) return v.toExponential(0).replace("e+", "e");
+  if (Number.isInteger(v)) return v.toLocaleString();
+  return (+v.toPrecision(3)).toString();
+}
+
+// Domain + tick set for one axis (values are already log10-transformed if isLog).
+function makeAxis(tvals, isLog) {
+  let dmin = Math.min(...tvals), dmax = Math.max(...tvals), ticks;
+  if (isLog) {
+    const lo = Math.floor(dmin), hi = Math.max(Math.ceil(dmax), lo + 1);
+    dmin = lo; dmax = hi;
+    const step = (hi - lo) > 8 ? Math.ceil((hi - lo) / 8) : 1;
+    ticks = [];
+    for (let k = lo; k <= hi; k += step) ticks.push({ t: k, label: fmtTick(Math.pow(10, k)) });
+  } else {
+    const nt = niceTicks(dmin, dmax, 6);
+    dmin = Math.min(dmin, nt[0]); dmax = Math.max(dmax, nt[nt.length - 1]);
+    ticks = nt.map(v => ({ t: v, label: fmtTick(v) }));
+  }
+  if (dmin === dmax) { dmin -= 1; dmax += 1; }
+  return { dmin, dmax, ticks };
+}
+
+function renderScatter() {
+  const xm = xSel.value, ym = ySel.value;
+  // grey the per-node box on an axis whose metric is already normalized
+  for (const [chk, m] of [[xNorm, xm], [yNorm, ym]]) {
+    const ok = isNormalizable(m);
+    chk.disabled = !ok;
+    if (chk.parentElement) chk.parentElement.style.opacity = ok ? "" : "0.4";
+  }
+  const xnorm = xNorm.checked, ynorm = yNorm.checked, xlog = xLog.checked, ylog = yLog.checked;
+
+  // collect plottable points (drop non-finite; drop <=0 on a log axis)
+  const pts = [];
+  let dropped = 0;
+  for (const d of DATA) {
+    const xv = axVal(d, xm, xnorm), yv = axVal(d, ym, ynorm);
+    if (!isFinite(xv) || !isFinite(yv) || (xlog && xv <= 0) || (ylog && yv <= 0)) { dropped++; continue; }
+    pts.push({ d, xv, yv, tx: xlog ? Math.log10(xv) : xv, ty: ylog ? Math.log10(yv) : yv });
+  }
+
+  const { ml, mr, mt, mb, w, h } = SC;
+  const x0 = ml, x1 = w - mr, y0 = h - mb, y1 = mt;
+  scatterSvg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  scatterSvg.setAttribute("width", w);
+  scatterSvg.setAttribute("height", h);
+
+  if (pts.length < 2) {
+    scatterSvg.innerHTML = `<text class="stat" x="${w / 2}" y="${h / 2}" text-anchor="middle">Not enough points to plot</text>`;
+    scatterLegend.innerHTML = "";
+    countEl.textContent = `${pts.length} of ${DATA.length} species plotted`;
+    return;
+  }
+
+  const ax = makeAxis(pts.map(p => p.tx), xlog);
+  const ay = makeAxis(pts.map(p => p.ty), ylog);
+  const sx = t => x0 + (t - ax.dmin) / (ax.dmax - ax.dmin) * (x1 - x0);
+  const sy = t => y0 - (t - ay.dmin) / (ay.dmax - ay.dmin) * (y0 - y1);
+
+  const parts = [];
+  for (const tk of ax.ticks) {
+    const px = sx(tk.t);
+    if (px < x0 - 0.5 || px > x1 + 0.5) continue;
+    parts.push(`<line class="grid" x1="${px}" y1="${y0}" x2="${px}" y2="${y1}"/>`);
+    parts.push(`<text class="tick" x="${px}" y="${y0 + 16}" text-anchor="middle">${esc(tk.label)}</text>`);
+  }
+  for (const tk of ay.ticks) {
+    const py = sy(tk.t);
+    if (py < y1 - 0.5 || py > y0 + 0.5) continue;
+    parts.push(`<line class="grid" x1="${x0}" y1="${py}" x2="${x1}" y2="${py}"/>`);
+    parts.push(`<text class="tick" x="${x0 - 8}" y="${py + 4}" text-anchor="end">${esc(tk.label)}</text>`);
+  }
+  parts.push(`<line class="axis" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/>`);
+  parts.push(`<line class="axis" x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}"/>`);
+
+  // best-fit line + R^2 (least squares in the plotted/transformed space)
+  let statText = "";
+  if (fitChk.checked) {
+    const n = pts.length;
+    let sX = 0, sY = 0, sXY = 0, sX2 = 0, sY2 = 0;
+    for (const p of pts) { sX += p.tx; sY += p.ty; sXY += p.tx * p.ty; sX2 += p.tx * p.tx; sY2 += p.ty * p.ty; }
+    const denom = n * sX2 - sX * sX;
+    if (denom !== 0) {
+      const slope = (n * sXY - sX * sY) / denom;
+      const intercept = (sY - slope * sX) / n;
+      const rd = Math.sqrt(denom * (n * sY2 - sY * sY));
+      const r = rd !== 0 ? (n * sXY - sX * sY) / rd : 0;
+      parts.push(`<clipPath id="plotclip"><rect x="${x0}" y="${y1}" width="${x1 - x0}" height="${y0 - y1}"/></clipPath>`);
+      parts.push(`<line class="fit" clip-path="url(#plotclip)" x1="${sx(ax.dmin)}" y1="${sy(slope * ax.dmin + intercept)}" `
+        + `x2="${sx(ax.dmax)}" y2="${sy(slope * ax.dmax + intercept)}"/>`);
+      statText = `R² = ${(r * r).toFixed(3)}  (n = ${n})`;
+    }
+  }
+
+  for (const p of pts) {
+    const nm = label(p.d);
+    parts.push(`<circle class="pt" cx="${sx(p.tx).toFixed(1)}" cy="${sy(p.ty).toFixed(1)}" r="4.5" fill="${megaColor(megaOf(p.d))}">`
+      + `<title>${esc(nm.common)}\n${esc(METRIC_LABELS[xm] || xm)}: ${fmt(p.xv)}\n${esc(METRIC_LABELS[ym] || ym)}: ${fmt(p.yv)}</title></circle>`);
+  }
+
+  const axisTitle = (m, norm, log) => (METRIC_LABELS[m] || m)
+    + (norm && isNormalizable(m) ? " / node" : "") + (log ? " (log₁₀)" : "");
+  parts.push(`<text class="axistitle" x="${(x0 + x1) / 2}" y="${h - 14}" text-anchor="middle">${esc(axisTitle(xm, xnorm, xlog))}</text>`);
+  parts.push(`<text class="axistitle" transform="translate(16,${(y0 + y1) / 2}) rotate(-90)" text-anchor="middle">${esc(axisTitle(ym, ynorm, ylog))}</text>`);
+  if (statText) parts.push(`<text class="stat" x="${x1 - 6}" y="${y1 + 14}" text-anchor="end">${esc(statText)}</text>`);
+
+  scatterSvg.innerHTML = parts.join("");
+
+  const present = [...new Set(pts.map(p => megaOf(p.d)))].sort(siblingSort);
+  scatterLegend.innerHTML = present.map(m => `<span><i style="background:${megaColor(m)}"></i>${esc(m)}</span>`).join("")
+    + (dropped ? `<span style="color:#b0451f">${dropped} excluded${(xlog || ylog) ? " (≤0 on a log axis)" : ""}</span>` : "");
+  countEl.textContent = `${pts.length} of ${DATA.length} species · ${METRIC_LABELS[ym] || ym} vs ${METRIC_LABELS[xm] || xm}`;
+}
+
+function render() {
+  const view = viewSel.value;
+  const isTree = view === "tree", isList = view === "list", isScatter = view === "scatter";
+
+  const canNorm = isNormalizable(metricSel.value);
+  pernodeChk.disabled = !canNorm;
+  if (pernodeChk.parentElement) pernodeChk.parentElement.style.opacity = canNorm ? "" : "0.4";
+
+  treewrap.hidden = !isTree;
+  grid.hidden = !isList;
+  scatterwrap.hidden = !isScatter;
+  const show = (sel, on) => document.querySelectorAll(sel).forEach(e => e.style.display = on ? "" : "none");
+  show(".tl-only", isTree || isList);
+  show(".tree-only", isTree);
+  show(".list-only", isList);
+  show(".scatter-only", isScatter);
+
+  if (isTree) renderTree();
+  else if (isList) renderList();
+  else renderScatter();
+}
+
+// Click a clade label to collapse it; click a wedge to expand it.
+svg.addEventListener("click", e => {
+  const el = e.target.closest("[data-key]");
+  if (!el) return;
+  const key = el.getAttribute("data-key");
+  if (collapsed.has(key)) collapsed.delete(key); else collapsed.add(key);
+  renderTree();
+});
+
+metricSel.addEventListener("change", render);
+viewSel.addEventListener("change", render);
+sortSel.addEventListener("change", render);
+cladeChk.addEventListener("change", render);
+pernodeChk.addEventListener("change", render);
+for (const el of [xSel, ySel, xLog, yLog, xNorm, yNorm, fitChk]) el.addEventListener("change", render);
+document.getElementById("collapseAll").addEventListener("click", () => {
+  new Set(Object.values(TAXO).map(p => p[0])).forEach(k => collapsed.add(k));
+  render();
+});
+document.getElementById("expandAll").addEventListener("click", () => {
+  collapsed.clear();
+  render();
+});
+
+function init() {
+  buildMetricOptions();
+  render();
+}
+
+// Try to pick up fresh data if this page is being served (fetch fails on file://).
+fetch("all_species_data.json")
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(d => { if (Array.isArray(d) && d.length) { DATA = flattenAll(d); init(); } })
+  .catch(() => {
+    const b = document.getElementById("banner");
+    b.style.display = "block";
+    b.textContent = "Showing embedded data. To load all_species_data.json live, serve this folder (e.g. python3 -m http.server) and open species_viz.html over http://";
+  });
+
+init();
+</script>
+</body>
+</html>

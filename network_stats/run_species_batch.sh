@@ -8,9 +8,7 @@
 #SBATCH --cpus-per-task=144
 #SBATCH --mem=0
 
-# Compute global network stats (everything except the two expensive
-# cluster-graph connectivity averages -- see run_node_connectivity.sh /
-# run_edge_connectivity.sh for those) for every species under BASE_DIR, one
+# Compute global network stats for every species under BASE_DIR, one
 # single-threaded compute_network_stats.py process per species, fanned out
 # across this node's cores with xargs -P. Each species job is independent
 # (unlike the collaborator's post_cluster_par.sh, there's no per-species
@@ -104,24 +102,12 @@ echo "found $N_SPECIES species dirs under $BASE_DIR, running with -P $JOBS"
 # new stat" script or manual deletion of old output needed. Pass --force to
 # compute_network_stats.py (edit run_one below) to force a full recompute.
 #
-# This job is deliberately "everything EXCEPT the two expensive cluster-graph
-# connectivity averages" -- --skip avg_node_connectivity avg_edge_connectivity
-# keeps every species here uniformly cheap (protein-level stats + the cheap
-# cluster_graph fields: bridges, node/edge connectivity invariants, diameter,
-# modularity), which is exactly what this xargs -P fan-out (many species at
-# once, one core each) is suited for. Run run_node_connectivity.sh and
-# run_edge_connectivity.sh separately for the two expensive averages -- those
-# give ONE species the whole node at a time instead, since that work is
-# wildly uneven in size across species (minutes to 90+ hours) and would
-# badly load-imbalance a many-species-at-once fan-out like this one. All
-# three scripts write into the same --out files and skip whatever's already
-# there, so they're safe to run in any order, independently, and re-run any
-# time (e.g. after adding new species).
+# Every stat here is cheap and single-threaded, so one core per species is the
+# right shape for this xargs -P fan-out.
 run_one() {
     dir="$1"
     acc="$(basename "$dir")"
     if python3 "$SCRIPT_DIR/compute_network_stats.py" "$dir" --quiet \
-            --skip avg_node_connectivity avg_edge_connectivity \
             --out "$OUT_DIR/${acc}_stats.json" \
             > "$OUT_DIR/logs/${acc}.log" 2>&1; then
         echo "done:  $acc"

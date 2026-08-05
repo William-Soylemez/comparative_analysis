@@ -38,17 +38,12 @@ def main():
             continue
         results.append(loaded)
 
-    # Atomic write: run_species_batch.sh, run_node_connectivity.sh, and
-    # run_edge_connectivity.sh each call this as their last step, and can
-    # legitimately be running at the same time against the same OUT_DIR (see
-    # their headers) -- writing straight to out_file with plain open(..., "w")
-    # would let two concurrent calls interleave/truncate each other's output
-    # mid-write, corrupting the file. Writing to a temp file in the same
-    # directory and os.replace()-ing it into place means whichever call
-    # finishes last atomically wins with a fully-valid (if possibly slightly
-    # stale relative to the other, still-running call) JSON file -- never a
-    # half-written or interleaved one. Run this once more manually after all
-    # jobs you care about have finished for a guaranteed-fresh combined file.
+    # Atomic write: run_species_batch.sh calls this as its last step. Writing to
+    # a temp file in the same directory and os.replace()-ing it into place means
+    # a reader never sees a half-written or interleaved file, and if two runs
+    # ever overlap against the same OUT_DIR whichever finishes last atomically
+    # wins with a fully-valid JSON. Run this once more manually after all jobs
+    # you care about have finished for a guaranteed-fresh combined file.
     tmp_file = f"{out_file}.tmp.{os.getpid()}"
     with open(tmp_file, "w") as f:
         json.dump(results, f, indent=2)
