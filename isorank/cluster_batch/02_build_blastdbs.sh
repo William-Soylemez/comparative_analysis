@@ -5,7 +5,7 @@
 # or as a quick non-parallel step at the top of the sbatch blast job.
 #
 # Usage: bash 02_build_blastdbs.sh
-# Expects species.tsv, ../proteomes/<short>.faa
+# Expects ../species.txt, ../proteomes/<short>.faa
 # Writes ../blastdb/<short>.{phr,pin,psq,...}
 
 set -euo pipefail
@@ -21,7 +21,7 @@ command -v makeblastdb >/dev/null || {
     exit 1
 }
 
-tail -n +2 species.txt | while IFS=$'\t' read -r short acc organism species_dir; do
+tail -n +2 ../species.txt | while IFS=$'\t' read -r short acc organism; do
     if [[ -s "../blastdb/${short}.pin" ]]; then
         echo "skip: $short -- blastdb/${short}.pin already exists"
         continue

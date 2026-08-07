@@ -10,11 +10,11 @@
 
 # One-job orchestrator running the entire all-pairs IsoRank pipeline
 # end to end: proteomes -> blastdbs -> all-pairs reciprocal BLAST ->
-# LCC-restriction + bitscore similarity -> all-pairs IsoRank alignment ->
-# summary table -> decay-curve plots. Same fan-out logic as the standalone
-# 01-07 scripts (shared via lib_blast_phase.sh / lib_alignment_phase.sh),
-# just run back-to-back in one allocation instead of six separate
-# submissions, so JOBS = full node core count is available to every
+# LCC-restriction + bitscore similarity (2_similarity.py) -> all-pairs IsoRank
+# alignment (3_isorank.py) -> summary table. Same fan-out logic as the
+# standalone 01-06 scripts (shared via lib_blast_phase.sh /
+# lib_alignment_phase.sh), just run back-to-back in one allocation instead of
+# separate submissions, so JOBS = full node core count is available to every
 # parallel phase in turn -- phases are sequential (BLAST must finish before
 # the alignment inputs can be built), but each phase individually still
 # gets to fan out across all 144 cores via xargs -P, so there's no loss of
@@ -56,34 +56,30 @@ export PATH="/work/11301/wsoylemez/vista/ncbi-blast-current/bin:$PATH"
 source /work/11301/wsoylemez/vista/venv/bin/activate
 JOBS="${SLURM_CPUS_PER_TASK:-144}"
 
-echo "############ [1/6] proteomes ############"
+echo "############ [1/5] proteomes ############"
 bash 01_download_proteomes.sh "$FASTA_BASE_DIR"
 
-echo "############ [2/6] blast DBs ############"
+echo "############ [2/5] blast DBs ############"
 bash 02_build_blastdbs.sh
 
-echo "############ [3/6] all-pairs reciprocal BLAST ############"
+echo "############ [3/5] all-pairs reciprocal BLAST ############"
 source lib_blast_phase.sh
 run_blast_phase
 
-echo "############ [4/6] LCC restriction + bitscore similarity ############"
+echo "############ [4/5] LCC restriction + bitscore similarity ############"
 bash 04_prepare_networks_and_pairs.sh
 
-echo "############ [5/6] all-pairs IsoRank alignment ############"
-cd ..   # isorank/ -- run_full_alignment.py reads net/... relative to here
-# Re-activate the isorank-specific venv (netalign/numpy/pandas live here, not
-# in the general vista/venv sourced at the top of this script) -- matches
-# what the standalone 05_run_all_pairs_alignment.sbatch does, and what
-# 04_prepare_networks_and_pairs.sh / 07_plot_all_pairs.sh already do
-# internally. Without this, phase 5 would silently keep running in the
-# general venv and fail with ModuleNotFoundError: netalign.
-source venv/bin/activate
+echo "############ [5/5] all-pairs IsoRank alignment + summary ############"
+cd ..   # isorank/ -- 3_isorank.py reads net/... relative to here
+# Re-activate the isorank venv (netalign/numpy/pandas live here, not in the
+# general vista/venv sourced at the top of this script). Without this, the
+# alignment phase would keep running in the general venv and fail with
+# ModuleNotFoundError: netalign.
+source ../venv/bin/activate
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 source cluster_batch/lib_alignment_phase.sh
 run_alignment_phase
 
-echo "############ [6/6] summary + plots ############"
 python3 cluster_batch/06_aggregate_summary.py
-bash cluster_batch/07_plot_all_pairs.sh
 
 echo "all done."

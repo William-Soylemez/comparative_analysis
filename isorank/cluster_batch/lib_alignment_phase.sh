@@ -5,12 +5,12 @@
 #
 # Assumes: cwd is isorank/, venv activated, JOBS set. Requires
 # 04_prepare_networks_and_pairs.sh to have already produced every
-# net/<short>_lcc_bs.tsv and net/<a>_lcc_bs-<b>_lcc_bs.tsv.
+# net/<short>.tsv and net/<a>-<b>.tsv.
 
 run_alignment_phase() {
     mkdir -p cluster_batch/logs
 
-    mapfile -t SHORTS < <(tail -n +2 cluster_batch/species.txt | cut -f1)
+    mapfile -t SHORTS < <(tail -n +2 species.txt | cut -f1)
     : > cluster_batch/align_pairs.txt
     for ((i = 0; i < ${#SHORTS[@]}; i++)); do
         for ((j = i + 1; j < ${#SHORTS[@]}; j++)); do
@@ -21,13 +21,11 @@ run_alignment_phase() {
 
     run_one_alignment() {
         a="$1"; b="$2"
-        prefix="${a}_lcc_bs_${b}_lcc_bs"
-        if [[ -s "${prefix}_alignment_scores.json" ]]; then
+        if [[ -s "results/${a}_${b}_alignment_scores.json" ]]; then
             echo "skip: $a-$b"
             return 0
         fi
-        if python3 run_full_alignment.py "${a}_lcc_bs" "${b}_lcc_bs" \
-                > "cluster_batch/logs/${a}_${b}.log" 2>&1; then
+        if python3 3_isorank.py "$a" "$b" > "cluster_batch/logs/${a}_${b}.log" 2>&1; then
             echo "done:  $a-$b"
         else
             echo "FAILED: $a-$b (see cluster_batch/logs/${a}_${b}.log)"

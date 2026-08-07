@@ -1,5 +1,5 @@
 #!/bin/bash
-# Populate proteomes/<short>.faa for every species in species.tsv that
+# Populate proteomes/<short>.faa for every species in species.txt that
 # doesn't already have one, preferring the exact protein set PHILHARMONIC
 # itself used to build that species' network (so IDs are guaranteed to
 # match net/<short>.tsv 1:1) over a fresh NCBI download.
@@ -17,7 +17,7 @@
 # scer/cneo/calbicans/ncrassa already have proteomes/<short>.faa from
 # earlier work and are skipped either way.
 #
-# Expects species.tsv (short, accession, organism, species_dir) next to it.
+# Expects ../species.txt (short, accession, organism).
 # Writes ../proteomes/<short>.faa
 
 set -euo pipefail
@@ -26,7 +26,7 @@ FASTA_BASE_DIR="${1:-}"
 OUT_DIR=../proteomes
 mkdir -p "$OUT_DIR"
 
-tail -n +2 species.txt | while IFS=$'\t' read -r short acc organism species_dir; do
+tail -n +2 ../species.txt | while IFS=$'\t' read -r short acc organism; do
     faa="$OUT_DIR/${short}.faa"
     if [[ -s "$faa" ]]; then
         echo "skip: $short ($acc) -- $faa already exists"

@@ -1,0 +1,11 @@
+short	accession	organism
+scer	GCF_000146045.2	Saccharomyces cerevisiae
+cneo	GCF_000149245.1	Cryptococcus neoformans
+bdendro	GCF_000203795.2	Batrachochytrium dendrobatidis
+rhizophagus	GCF_026210795.1	Rhizophagus irregularis
+kickxella	GCF_025024165.1	Kickxella alabastrina
+agaricus	GCA_014872705.1	Agaricus bisporus
+calbicans	GCF_000182965.3	Candida albicans
+ncrassa	GCF_000182925.2	Neurospora crassa
+blastocladiella	GCA_025594325.1	Blastocladiella emersonii
+mucor	GCF_025094135.1	Mucor mucedo
